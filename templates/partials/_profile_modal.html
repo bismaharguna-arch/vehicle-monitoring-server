@@ -1,0 +1,89 @@
+{# Modal edit profil — tersedia global di semua halaman authenticated.
+   Trigger via custom event 'vm:open-profile' (dispatch dari user chip navbar).
+   State: vmGlobal() Alpine component di base.html. #}
+<template x-teleport="body">
+  <div x-show="profileOpen" x-cloak
+       x-transition.opacity
+       class="vm-modal-backdrop"
+       @keydown.escape.window="profileOpen = false"
+       @click.self="profileOpen = false">
+    <div class="vm-modal" x-transition>
+      <div class="vm-modal-header">
+        <span class="vm-section-title d-inline-flex align-items-center gap-2">
+          <span class="vm-icon-circle is-edit">
+            <i class="ti ti-user-edit"></i>
+          </span>
+          <span>Edit Profil</span>
+        </span>
+        <button class="vm-btn vm-btn--icon" @click="profileOpen = false">
+          <i class="ti ti-x"></i>
+        </button>
+      </div>
+
+      <div class="vm-modal-body">
+        {# Konteks akun sendiri yang sedang diubah — seragam dgn modal Edit User #}
+        <div class="vm-edit-target">
+          <span class="vm-user-avatar" style="width: 38px; height: 38px; font-size: 0.95rem;"
+                x-text="(profileForm.username || '?').charAt(0).toUpperCase()"></span>
+          <div>
+            <div class="vm-edit-target-name" x-text="profileForm.username || '—'"></div>
+            <div class="vm-edit-target-sub">Mengubah akun Anda sendiri</div>
+          </div>
+        </div>
+
+        <div class="vm-field">
+          <label class="vm-label">Username</label>
+          <div class="vm-input-group">
+            <span class="vm-input-icon"><i class="ti ti-user"></i></span>
+            <input type="text" class="vm-input" x-model="profileForm.username">
+          </div>
+        </div>
+
+        <div class="vm-field">
+          <label class="vm-label">Password Saat Ini <span style="color: var(--vm-danger);">*</span></label>
+          <div class="vm-input-group">
+            <span class="vm-input-icon"><i class="ti ti-lock"></i></span>
+            <input :type="profileShowPw ? 'text' : 'password'"
+                   class="vm-input"
+                   x-model="profileForm.current_password"
+                   placeholder="Verifikasi password lama"
+                   autocomplete="current-password">
+            <button type="button"
+                    style="background: transparent; border: none; padding: 0 0.7rem; color: var(--vm-text-muted); cursor: pointer;"
+                    @click="profileShowPw = !profileShowPw">
+              <i :class="profileShowPw ? 'ti ti-eye-off' : 'ti ti-eye'"></i>
+            </button>
+          </div>
+          <div class="vm-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+            Wajib diisi untuk konfirmasi identitas.
+          </div>
+        </div>
+
+        <div class="vm-field" style="margin-bottom: 0;">
+          <label class="vm-label">Password Baru</label>
+          <div class="vm-input-group">
+            <span class="vm-input-icon"><i class="ti ti-lock-plus"></i></span>
+            <input :type="profileShowPw ? 'text' : 'password'"
+                   class="vm-input"
+                   x-model="profileForm.new_password"
+                   placeholder="Kosongkan jika tidak diubah"
+                   autocomplete="new-password">
+          </div>
+          <div class="vm-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+            Minimal 4 karakter. Biarkan kosong untuk tetap pakai password lama.
+          </div>
+        </div>
+      </div>
+
+      <div class="vm-modal-footer">
+        <button class="vm-btn vm-btn--ghost" @click="profileOpen = false">Batal</button>
+        <button class="vm-btn vm-btn--primary" @click="saveProfile()" :disabled="profileSaving">
+          <template x-if="!profileSaving">
+            <span><i class="ti ti-check"></i> Simpan Perubahan</span>
+          </template>
+          <template x-if="profileSaving"><span>Menyimpan...</span></template>
+        </button>
+      </div>
+    </div>
+  </div>
+</template>

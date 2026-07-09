@@ -1,0 +1,56 @@
+{# Tabel rows untuk halaman Kelola User. Targeted oleh tbody#vm-user-body. #}
+{% for u in users %}
+<tr id="user-row-{{ u.id }}">
+  <td class="vm-tnum vm-muted" style="width: 50px;">{{ loop.index }}</td>
+  <td>
+    <div class="d-inline-flex align-items-center gap-2">
+      <span class="vm-user-avatar"
+            style="width: 28px; height: 28px; font-size: 0.75rem;">
+        {{ u.username[:1]|upper }}
+      </span>
+      <span class="vm-plate" style="letter-spacing: 0;">{{ u.username }}</span>
+      {% if u.id == current_user.id %}
+        <span class="vm-badge vm-badge--unknown" style="font-size: 0.6875rem;">Anda</span>
+      {% endif %}
+    </div>
+  </td>
+  <td>
+    {% if u.role == 'admin' %}
+      <span class="vm-badge vm-badge--admin">Admin</span>
+    {% else %}
+      <span class="vm-badge vm-badge--guest">Guest</span>
+    {% endif %}
+  </td>
+  <td class="text-end" style="white-space: nowrap;">
+    <button class="vm-btn vm-btn--icon" title="Edit user"
+            @click='openEdit({
+              id: {{ u.id }},
+              username: {{ u.username|tojson }},
+              role: {{ u.role|tojson }}
+            })'>
+      <i class="ti ti-edit"></i>
+    </button>
+    {% if u.id != current_user.id %}
+      <button class="vm-btn vm-btn--icon is-danger" title="Hapus user"
+              onclick='vmDeleteUser({{ u.id }}, {{ u.username|tojson }})'>
+        <i class="ti ti-trash"></i>
+      </button>
+    {% else %}
+      <button class="vm-btn vm-btn--icon" disabled
+              title="Tidak bisa menghapus akun sendiri">
+        <i class="ti ti-trash"></i>
+      </button>
+    {% endif %}
+  </td>
+</tr>
+{% else %}
+<tr>
+  <td colspan="4">
+    <div class="vm-empty">
+      <i class="ti ti-user-off"></i>
+      <div class="vm-empty-title">Belum ada pengguna</div>
+      <div class="vm-empty-sub">Klik "Tambah User" untuk membuat akun baru.</div>
+    </div>
+  </td>
+</tr>
+{% endfor %}

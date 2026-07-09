@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile routes/riwayat.py)",
+      "Bash(python -c ' *)",
+      "Bash(python -)",
+      "Read(//d/deteksi_kendaraan/src/**)",
+      "Read(//d/deteksi_kendaraan/**)"
+    ]
+  },
+  "enabledPlugins": {
+    "ponytail@ponytail": true,
+    "code-review@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "feature-dev@claude-plugins-official": true
+  }
+}

@@ -1,0 +1,91 @@
+{# Topbar navigation — shared across all logged-in pages.
+   Variabel `active_nav` diset oleh template anak ('dashboard'|'riwayat'|'users') untuk highlight aktif.
+   Kelola User & Logout dipindahkan ke dropdown user chip (Alpine: { open: false }). #}
+<nav class="vm-topbar">
+  <div class="container d-flex align-items-center gap-3">
+
+    <a class="vm-brand" href="{{ url_for('dashboard.index') }}">
+      <span>Vehicle Monitoring</span>
+    </a>
+
+    <div class="vm-nav d-none d-md-flex ms-3">
+      <a class="vm-nav-link {% if active_nav == 'dashboard' %}active{% endif %}"
+         href="{{ url_for('dashboard.index') }}">
+        <i class="ti ti-layout-dashboard"></i> Dashboard
+      </a>
+      <a class="vm-nav-link {% if active_nav == 'riwayat' %}active{% endif %}"
+         href="{{ url_for('riwayat.index') }}">
+        <i class="ti ti-history"></i> Riwayat
+      </a>
+    </div>
+
+    <div class="ms-auto d-flex align-items-center gap-2">
+      {% if current_user.is_authenticated %}
+      <div x-data="{ open: false }" @click.outside="open = false" style="position: relative;">
+        <button type="button" class="vm-user-chip"
+                style="border: none; cursor: pointer;"
+                @click="open = !open"
+                :aria-expanded="open">
+          <span class="vm-user-avatar">{{ current_user.username[:1]|upper }}</span>
+          <span class="d-none d-sm-inline">{{ current_user.username }}</span>
+          <span class="vm-muted d-none d-md-inline" style="font-size: 0.75rem;">
+            · {{ current_user.role|upper }}
+          </span>
+          <i class="ti ti-chevron-down vm-muted"
+             style="font-size: 0.85rem; transition: transform 200ms ease;"
+             :style="open ? 'transform: rotate(180deg);' : ''"></i>
+        </button>
+
+        <div class="vm-menu"
+             x-show="open" x-cloak
+             x-transition.origin.top.right
+             x-transition:enter.duration.150ms
+             x-transition:leave.duration.100ms>
+
+          <div class="vm-menu-header">
+            <div class="vm-menu-header-name">{{ current_user.username }}</div>
+            <div class="vm-menu-header-role">{{ current_user.role }}</div>
+          </div>
+
+          {# Akun tamu BERSAMA (tombol "Masuk sebagai Tamu") dilarang ubah
+             profil — route /api/profile PATCH juga menolak 403 (dua lapis). #}
+          {% if current_user.username != 'tamu' %}
+          <button type="button" class="vm-menu-item"
+                  @click="open = false; $dispatch('vm:open-profile')">
+            <i class="ti ti-user-edit"></i> Edit Profil
+          </button>
+          {% endif %}
+
+          {% if current_user.role == 'admin' %}
+          <a href="{{ url_for('user_mgt.index') }}"
+             class="vm-menu-item {% if active_nav == 'users' %}is-active{% endif %}">
+            <i class="ti ti-users"></i> Kelola User
+          </a>
+          {% endif %}
+
+          <div class="vm-menu-divider"></div>
+
+          <a href="{{ url_for('auth.logout') }}" class="vm-menu-item is-danger">
+            <i class="ti ti-logout"></i> Keluar
+          </a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  {# Mobile nav (md ke bawah) #}
+  <div class="container d-md-none mt-2">
+    <div class="vm-nav" style="justify-content: space-around;">
+      <a class="vm-nav-link {% if active_nav == 'dashboard' %}active{% endif %}"
+         href="{{ url_for('dashboard.index') }}">
+        <i class="ti ti-layout-dashboard"></i>
+      </a>
+      <a class="vm-nav-link {% if active_nav == 'riwayat' %}active{% endif %}"
+         href="{{ url_for('riwayat.index') }}">
+        <i class="ti ti-history"></i>
+      </a>
+    </div>
+  </div>
+</nav>

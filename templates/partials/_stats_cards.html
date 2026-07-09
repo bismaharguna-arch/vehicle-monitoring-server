@@ -1,0 +1,50 @@
+{# 3 KPI cards. Dipakai di dashboard.html via {% include %} initial render,
+   dan di-swap oleh HTMX saat ada deteksi baru. #}
+<div class="row g-3" id="vm-stats-grid">
+  <div class="col-md-4">
+    <div class="vm-kpi is-total">
+      <div class="vm-kpi-head">
+        <span class="vm-card-label">Total Kendaraan</span>
+        <i class="ti ti-car vm-muted"></i>
+      </div>
+      <div class="vm-kpi-value">{{ "{:,}".format(total).replace(",", ".") }}</div>
+      <div class="vm-kpi-delta">
+        <i class="ti ti-minus"></i> Akumulasi seluruh deteksi
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="vm-kpi is-ev">
+      <div class="vm-kpi-head">
+        <span class="vm-card-label">Electric Vehicle</span>
+        <i class="ti ti-bolt" style="color: var(--vm-ev);"></i>
+      </div>
+      <div class="vm-kpi-value">{{ "{:,}".format(total_ev).replace(",", ".") }}</div>
+      <div class="vm-kpi-delta">
+        {% if total > 0 %}
+          {{ "%.1f"|format(total_ev * 100 / total) }}% dari total
+        {% else %}
+          Belum ada data
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="vm-kpi is-bbm">
+      <div class="vm-kpi-head">
+        <span class="vm-card-label">Bahan Bakar (BBM)</span>
+        <i class="ti ti-gas-station" style="color: var(--vm-bbm);"></i>
+      </div>
+      <div class="vm-kpi-value">{{ "{:,}".format(total_gas).replace(",", ".") }}</div>
+      <div class="vm-kpi-delta">
+        {% if total > 0 %}
+          {{ "%.1f"|format(total_gas * 100 / total) }}% dari total
+        {% else %}
+          Belum ada data
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

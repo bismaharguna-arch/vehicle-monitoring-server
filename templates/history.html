@@ -1,0 +1,479 @@
+{% extends "base.html" %}
+{% set active_nav = 'riwayat' %}
+
+{% block title %}Riwayat Deteksi — Vehicle Monitoring{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-baseline justify-content-between mb-4">
+  <div>
+    <h1 class="vm-page-title">Riwayat Deteksi</h1>
+  </div>
+  <div class="d-flex gap-2">
+    <span class="vm-badge {% if current_user.role == 'admin' %}vm-badge--admin{% else %}vm-badge--guest{% endif %}">
+      {{ current_user.role|upper }}
+    </span>
+  </div>
+</div>
+
+{# Wrapper Alpine untuk modal state. Form filter di-include otomatis via hx-include. #}
+<div x-data="historyPage()" @vm:lightbox.window="openLightbox($event.detail)">
+
+  <div class="row g-4">
+
+    {# =================== FILTER (kiri) =================== #}
+    <div class="col-lg-3 order-1">
+      <form id="vm-filter-form"
+            class="vm-filter"
+            style="position: sticky; top: 80px;"
+            hx-get="{{ url_for('riwayat.partial_list') }}"
+            hx-trigger="change, keyup changed delay:400ms from:input[type=text], vm:refresh from:body, every 10s"
+            hx-target="#vm-history-result"
+            hx-swap="innerHTML"
+            data-vm-refresh-on="new_detection"
+            @submit.prevent>
+
+        {# Page ikut terkirim di tiap request (termasuk auto-refresh) biar tidak loncat ke hal 1.
+           Diubah filter mana pun → vmResetPage() balikin ke 1. #}
+        <input type="hidden" name="page" id="vm-page-input" value="1">
+        {# State sorting (klik header tabel). Ikut terkirim di tiap refresh & polling
+           supaya urutan tidak balik ke default tiap 10 detik. #}
+        <input type="hidden" name="sort" id="vm-sort-input" value="{{ sort }}">
+        <input type="hidden" name="dir" id="vm-dir-input" value="{{ sort_dir }}">
+        {# Filter Tipe & Jenis: kontrolnya pindah ke dropdown di header tabel,
+           nilainya disimpan di hidden input ini (sumber kebenaran tunggal). #}
+        <input type="hidden" name="type" id="vm-type-input" value="{{ f_type }}">
+        <input type="hidden" name="fuel" id="vm-fuel-input" value="{{ f_fuel }}">
+
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <span class="vm-section-title d-inline-flex align-items-center gap-2">
+            <i class="ti ti-filter vm-muted"></i> Filter
+          </span>
+          <span class="htmx-indicator">
+            <i class="ti ti-loader-2" style="animation: spin 0.8s linear infinite; color: var(--vm-text-muted);"></i>
+          </span>
+        </div>
+
+        <div class="vm-field">
+          <label class="vm-label">Tanggal</label>
+          <input type="date" name="date" class="vm-input" onchange="vmResetPage()">
+        </div>
+
+        <div class="vm-field">
+          <label class="vm-label">Rentang Jam</label>
+          <div class="d-flex align-items-center gap-2">
+            <input type="time" name="jam_start" class="vm-input" onchange="vmResetPage()" title="Jam mulai" aria-label="Jam mulai">
+            <span class="vm-muted" style="font-size: 0.8125rem;">s/d</span>
+            <input type="time" name="jam_end" class="vm-input" onchange="vmResetPage()" title="Jam selesai" aria-label="Jam selesai">
+          </div>
+        </div>
+
+        <div class="vm-field">
+          <label class="vm-label">Plat Nomor</label>
+          <input type="text" name="plate" class="vm-input" placeholder="Cari plat..." oninput="vmResetPage()">
+        </div>
+
+        <div class="vm-field">
+          <label class="vm-label">Status Plat</label>
+          <select name="plat_status" class="vm-input" onchange="vmResetPage()">
+            <option value="all">Semua</option>
+            <option value="ada">Ada nomor</option>
+            <option value="kosong">Tanpa nomor</option>
+          </select>
+        </div>
+
+        <button type="button" class="vm-btn vm-btn--ghost w-100"
+                @click="resetFilter()">
+          <i class="ti ti-refresh"></i> Reset Filter
+        </button>
+      </form>
+    </div>
+
+    {# =================== TABLE (kanan) =================== #}
+    <div class="col-lg-9 order-2">
+      <div class="vm-card">
+        <div class="vm-card-header">
+          <span class="vm-section-title d-inline-flex align-items-center gap-2">
+            <i class="ti ti-list-details vm-muted"></i> Log Deteksi
+          </span>
+          <div class="d-flex gap-2">
+            <button type="button" class="vm-btn vm-btn--ghost" @click="openPrint()"
+                    title="Cetak atau unduh CSV — pilih rentang tanggal / tipe dulu">
+              <i class="ti ti-file-export"></i> Cetak / Ekspor
+            </button>
+          </div>
+        </div>
+        <div id="vm-history-result">
+          {% include 'partials/_history_result.html' %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# =================== Edit modal (Alpine) =================== #}
+  <template x-teleport="body">
+    <div x-show="editOpen" x-cloak
+         x-transition.opacity
+         class="vm-modal-backdrop"
+         @keydown.escape.window="editOpen = false"
+         @click.self="editOpen = false">
+      <div class="vm-modal" x-transition>
+        <div class="vm-modal-header">
+          <span class="vm-section-title">Koreksi Data Deteksi</span>
+          <button class="vm-btn vm-btn--icon" @click="editOpen = false">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+        <div class="vm-modal-body">
+          <div class="vm-field">
+            <label class="vm-label">Plat Nomor</label>
+            <input type="text" class="vm-input" x-model="form.plate" placeholder="contoh: B 1234 ABC">
+          </div>
+          <div class="vm-field">
+            <label class="vm-label">Tipe Kendaraan</label>
+            <select class="vm-select" x-model="form.type">
+              <option value="motor">Motor</option>
+              <option value="mobil">Mobil</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </div>
+          <div class="vm-field">
+            <label class="vm-label">Jenis Bahan Bakar</label>
+            <select class="vm-select" x-model="form.fuel">
+              <option value="listrik">Listrik (EV)</option>
+              <option value="bensin">Bensin (BBM)</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </div>
+        </div>
+        <div class="vm-modal-footer">
+          <button class="vm-btn vm-btn--ghost" @click="editOpen = false">Batal</button>
+          <button class="vm-btn vm-btn--primary" @click="saveEdit()" :disabled="saving">
+            <template x-if="!saving"><span><i class="ti ti-check"></i> Simpan</span></template>
+            <template x-if="saving"><span>Menyimpan...</span></template>
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  {# =================== Delete confirmation (Alpine) =================== #}
+  <template x-teleport="body">
+    <div x-show="deleteOpen" x-cloak
+         x-transition.opacity
+         class="vm-modal-backdrop"
+         @keydown.escape.window="deleteOpen = false"
+         @click.self="deleteOpen = false">
+      <div class="vm-modal" x-transition>
+        <div class="vm-modal-header">
+          <span class="vm-section-title d-inline-flex align-items-center gap-2">
+            <span class="vm-icon-circle is-danger">
+              <i class="ti ti-trash"></i>
+            </span>
+            Hapus Data Deteksi
+          </span>
+          <button class="vm-btn vm-btn--icon" @click="deleteOpen = false" title="Tutup">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+        <div class="vm-modal-body">
+          <p class="vm-body" style="margin: 0 0 1rem;">
+            Tindakan ini akan menghapus permanen baris berikut. Data tidak bisa dikembalikan.
+          </p>
+          <dl class="vm-detail-list" style="margin: 0;">
+            <div class="vm-detail-row">
+              <dt>Waktu</dt>
+              <dd x-text="deleteTarget.timestamp"></dd>
+            </div>
+            <div class="vm-detail-row">
+              <dt>Plat Nomor</dt>
+              <dd x-text="deleteTarget.plate || '—'"></dd>
+            </div>
+            <div class="vm-detail-row">
+              <dt>Tipe</dt>
+              <dd x-text="deleteTarget.type || '—'" style="text-transform: capitalize;"></dd>
+            </div>
+            <div class="vm-detail-row">
+              <dt>Jenis</dt>
+              <dd>
+                <template x-if="deleteTarget.fuel === 'listrik'">
+                  <span class="vm-badge vm-badge--ev">EV</span>
+                </template>
+                <template x-if="deleteTarget.fuel === 'bensin'">
+                  <span class="vm-badge vm-badge--bbm">BBM</span>
+                </template>
+                <template x-if="deleteTarget.fuel !== 'listrik' && deleteTarget.fuel !== 'bensin'">
+                  <span class="vm-badge vm-badge--unknown">Unknown</span>
+                </template>
+              </dd>
+            </div>
+          </dl>
+        </div>
+        <div class="vm-modal-footer">
+          <button class="vm-btn vm-btn--ghost" @click="deleteOpen = false">Batal</button>
+          <button class="vm-btn vm-btn--danger" @click="confirmDelete()" :disabled="deleting">
+            <template x-if="!deleting">
+              <span><i class="ti ti-trash"></i> Hapus Permanen</span>
+            </template>
+            <template x-if="deleting"><span>Menghapus...</span></template>
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  {# =================== Lightbox foto (Alpine) =================== #}
+  <template x-teleport="body">
+    <div x-show="lightboxSrc" x-cloak
+         x-transition.opacity
+         class="vm-modal-backdrop"
+         style="background: rgba(0,0,0,0.85);"
+         @keydown.escape.window="lightboxSrc = ''"
+         @click.self="lightboxSrc = ''">
+      <img :src="lightboxSrc" alt="preview"
+           style="max-width: 90vw; max-height: 90vh; border-radius: 8px;">
+    </div>
+  </template>
+
+  {# =================== Dialog Cetak Laporan (Alpine) =================== #}
+  <template x-teleport="body">
+    <div x-show="printOpen" x-cloak
+         x-transition.opacity
+         class="vm-modal-backdrop"
+         @keydown.escape.window="printOpen = false"
+         @click.self="printOpen = false">
+      <div class="vm-modal" x-transition>
+        <div class="vm-modal-header">
+          <span class="vm-section-title d-inline-flex align-items-center gap-2">
+            <span class="vm-icon-circle">
+              <i class="ti ti-printer"></i>
+            </span>
+            Cetak / Ekspor Laporan
+          </span>
+          <button class="vm-btn vm-btn--icon" @click="printOpen = false" title="Tutup">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+        <div class="vm-modal-body">
+          <p class="vm-body vm-muted" style="margin: 0 0 1rem; font-size: 0.8125rem;">
+            Pilih data yang ingin dicetak. Bagian yang dikosongkan = semua.
+          </p>
+          <div class="vm-field">
+            <label class="vm-label">Rentang Tanggal</label>
+            <div class="d-flex align-items-center gap-2">
+              <input type="date" class="vm-input" x-model="printForm.date_from" aria-label="Dari tanggal">
+              <span class="vm-muted" style="font-size: 0.8125rem;">s/d</span>
+              <input type="date" class="vm-input" x-model="printForm.date_to" aria-label="Sampai tanggal">
+            </div>
+          </div>
+          <div class="vm-field">
+            <label class="vm-label">Tipe Kendaraan</label>
+            <select class="vm-select" x-model="printForm.type">
+              <option value="all">Semua</option>
+              <option value="mobil">Mobil</option>
+              <option value="motor">Motor</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </div>
+          <div class="vm-field">
+            <label class="vm-label">Bahan Bakar</label>
+            <select class="vm-select" x-model="printForm.fuel">
+              <option value="all">Semua</option>
+              <option value="listrik">Listrik (EV)</option>
+              <option value="bensin">Bensin (BBM)</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </div>
+        </div>
+        <div class="vm-modal-footer">
+          <button class="vm-btn vm-btn--ghost" @click="printOpen = false">Batal</button>
+          <button class="vm-btn vm-btn--ghost" @click="doExportCsv()">
+            <i class="ti ti-file-spreadsheet"></i> CSV
+          </button>
+          <button class="vm-btn vm-btn--primary" @click="doPrint()">
+            <i class="ti ti-printer"></i> Cetak
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+</div>
+
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+  [x-cloak] { display: none !important; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Pagination: set hidden input #vm-page-input lalu trigger ulang form filter
+  // (form mengirim semua filter + page sekaligus ke partial_list).
+  function vmGoPage(n) {
+    var el = document.getElementById('vm-page-input');
+    if (!el) return;
+    el.value = Math.max(1, n);
+    htmx.trigger('#vm-filter-form', 'vm:refresh');
+  }
+  // Tiap ganti filter, balik ke halaman 1. Jalan di fase target input (sebelum
+  // event 'change'/'keyup' membubble ke form & di-serialize HTMX).
+  function vmResetPage() {
+    var el = document.getElementById('vm-page-input');
+    if (el) el.value = 1;
+  }
+
+  // Sorting ala Task Manager Windows: klik kolom yang sama → toggle naik/turun;
+  // klik kolom lain → urut naik dari kolom itu. State disimpan di hidden input
+  // (ikut terkirim ke partial_list bersama filter & page).
+  function vmSortBy(key) {
+    var sortEl = document.getElementById('vm-sort-input');
+    var dirEl = document.getElementById('vm-dir-input');
+    if (!sortEl || !dirEl) return;
+    if (sortEl.value === key) {
+      dirEl.value = (dirEl.value === 'asc') ? 'desc' : 'asc';
+    } else {
+      sortEl.value = key;
+      dirEl.value = 'asc';
+    }
+    vmResetPage();
+    htmx.trigger('#vm-filter-form', 'vm:refresh');
+  }
+
+  // Dropdown filter di header tabel (Tipe & Jenis): set hidden input di form
+  // lalu trigger refresh. Sumber kebenaran tunggal = hidden input #vm-{field}-input.
+  function vmHeaderFilter(field, value) {
+    var el = document.getElementById('vm-' + field + '-input');
+    if (!el) return;
+    el.value = value;
+    vmResetPage();
+    htmx.trigger('#vm-filter-form', 'vm:refresh');
+  }
+
+  function historyPage() {
+    return {
+      editOpen: false,
+      saving: false,
+      lightboxSrc: '',
+      form: { id: null, plate: '', type: 'unknown', fuel: 'unknown' },
+
+      deleteOpen: false,
+      deleting: false,
+      deleteTarget: { id: null, timestamp: '', plate: '', type: '', fuel: '' },
+
+      // Dialog cetak laporan
+      printOpen: false,
+      printForm: { date_from: '', date_to: '', type: 'all', fuel: 'all' },
+
+      openEdit(item) {
+        this.form = {
+          id: item.id,
+          plate: item.plate || '',
+          type: item.type || 'unknown',
+          fuel: item.fuel || 'unknown',
+        };
+        this.editOpen = true;
+      },
+
+      async saveEdit() {
+        this.saving = true;
+        try {
+          const res = await fetch(`/api/detections/${this.form.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              plate_number: this.form.plate,
+              vehicle_type: this.form.type,
+              is_electric: this.form.fuel,
+            }),
+          });
+          if (res.ok) {
+            this.editOpen = false;
+            Swal.fire({ icon: 'success', title: 'Tersimpan', timer: 1000, showConfirmButton: false });
+            // Trigger HTMX refresh tabel sambil mempertahankan filter aktif
+            htmx.trigger('#vm-filter-form', 'vm:refresh');
+          } else {
+            Swal.fire({ icon: 'error', title: 'Gagal', text: 'Anda mungkin tidak memiliki akses.' });
+          }
+        } catch (e) {
+          Swal.fire({ icon: 'error', title: 'Error', text: 'Permintaan gagal.' });
+        } finally {
+          this.saving = false;
+        }
+      },
+
+      openLightbox(src) { this.lightboxSrc = src; },
+
+      openDelete(item) {
+        this.deleteTarget = {
+          id: item.id,
+          timestamp: item.timestamp || '—',
+          plate: item.plate || '',
+          type: item.type || 'unknown',
+          fuel: item.fuel || 'unknown',
+        };
+        this.deleteOpen = true;
+      },
+
+      async confirmDelete() {
+        if (!this.deleteTarget.id) return;
+        this.deleting = true;
+        try {
+          const res = await fetch(`/api/detections/${this.deleteTarget.id}`, { method: 'DELETE' });
+          if (res.ok) {
+            this.deleteOpen = false;
+            Swal.fire({ icon: 'success', title: 'Terhapus', timer: 1000, showConfirmButton: false });
+            htmx.trigger('#vm-filter-form', 'vm:refresh');
+          } else {
+            Swal.fire({ icon: 'error', title: 'Gagal', text: 'Hanya Admin yang boleh menghapus.' });
+          }
+        } catch (e) {
+          Swal.fire({ icon: 'error', title: 'Error', text: 'Permintaan gagal.' });
+        } finally {
+          this.deleting = false;
+        }
+      },
+
+      openPrint() {
+        // Mulai dari kosong (semua data). User pilih rentang tanggal / tipe / jenis.
+        this.printForm = { date_from: '', date_to: '', type: 'all', fuel: 'all' };
+        this.printOpen = true;
+      },
+
+      doPrint() {
+        const p = new URLSearchParams();
+        if (this.printForm.date_from) p.set('date_from', this.printForm.date_from);
+        if (this.printForm.date_to) p.set('date_to', this.printForm.date_to);
+        if (this.printForm.type && this.printForm.type !== 'all') p.set('type', this.printForm.type);
+        if (this.printForm.fuel && this.printForm.fuel !== 'all') p.set('fuel', this.printForm.fuel);
+        window.open('{{ url_for("riwayat.cetak") }}?' + p.toString(), '_blank');
+        this.printOpen = false;
+      },
+
+      doExportCsv() {
+        // CSV pakai filter yang sama seperti Cetak (tanggal / tipe / bahan bakar).
+        const p = new URLSearchParams();
+        if (this.printForm.date_from) p.set('date_from', this.printForm.date_from);
+        if (this.printForm.date_to) p.set('date_to', this.printForm.date_to);
+        if (this.printForm.type && this.printForm.type !== 'all') p.set('type', this.printForm.type);
+        if (this.printForm.fuel && this.printForm.fuel !== 'all') p.set('fuel', this.printForm.fuel);
+        window.open('{{ url_for("riwayat.export_csv") }}?' + p.toString(), '_blank');
+        this.printOpen = false;
+      },
+
+      resetFilter() {
+        const f = document.getElementById('vm-filter-form');
+        f.reset();
+        // Hidden input (filter header + sort) tidak ikut ter-reset ke nilai netral
+        // oleh form.reset() — set manual lalu trigger refresh.
+        document.getElementById('vm-type-input').value = 'all';
+        document.getElementById('vm-fuel-input').value = 'all';
+        document.getElementById('vm-sort-input').value = 'waktu';
+        document.getElementById('vm-dir-input').value = 'desc';
+        vmResetPage();
+        htmx.trigger(f, 'vm:refresh');
+      },
+    };
+  }
+</script>
+{% endblock %}

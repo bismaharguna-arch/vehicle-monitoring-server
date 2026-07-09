@@ -1,0 +1,62 @@
+# ================================================================
+#  .gitignore — Vehicle Monitoring Server
+#  Prinsip: source code masuk git, lingkungan & data runtime TIDAK.
+# ================================================================
+
+# --- Virtual environment (WAJIB, ~300 MB, tidak portable) ---
+venv/
+.venv/
+env/
+
+# --- Rahasia & konfigurasi lokal (JANGAN pernah ke-push) ---
+.env
+.env.*
+!.env.example
+*.key
+api_key.txt
+
+# --- Python cache / build ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Data runtime (dibuat saat server jalan, bukan source) ---
+uploads/
+*.log
+
+# --- Database lokal (kalau ada; proyek utama pakai MySQL eksternal) ---
+*.sqlite
+*.sqlite3
+*.db
+
+# --- File OS / editor ---
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# --- Setelan lokal Claude Code (khusus mesin ini) ---
+.claude/settings.local.json
+
+# --- Scaffolding Claude Code / skills (bukan bagian proyek) ---
+.agents/
+/SKILL.md
+skills-lock.json
+
+# ================================================================
+#  Permintaan pemilik proyek — folder lokal/laporan, tidak ikut repo
+# ================================================================
+postman/
+test_report/
+tabel_report/
+tools/
+catatan/
+backup/

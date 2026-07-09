@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="id" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Vehicle Monitoring{% endblock %}</title>
+
+  {# Tema: gelap saja (mode terang dihapus). data-bs-theme di-set langsung di <html>. #}
+
+  {# ---------- Fonts ---------- #}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  {# ---------- Tabler (Bootstrap 5 admin) ---------- #}
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css" rel="stylesheet">
+
+  {# ---------- Tabler Icons ---------- #}
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css" rel="stylesheet">
+
+  {# ---------- Refined override ---------- #}
+  <link href="{{ url_for('static', filename='css/refined.css') }}" rel="stylesheet">
+
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+  <div x-data="vmGlobal()" @vm:open-profile.window="openProfile()">
+    {% include 'partials/_navbar.html' %}
+
+    <main class="container py-4">
+      {# Banner global "database tidak tersedia". Tampil saat route kirim
+         db_offline=True (initial render), dan ditoggle JS tiap polling HTMX
+         (lihat script di bawah) supaya muncul/hilang otomatis tanpa reload. #}
+      <div id="vm-db-banner"
+           class="alert alert-warning d-flex align-items-center gap-2 mb-4 {% if not db_offline %}d-none{% endif %}"
+           role="alert">
+        <i class="ti ti-database-off fs-2"></i>
+        <div>
+          <strong>Database sedang tidak tersedia.</strong>
+          Data mungkin belum terbarui. Sistem akan otomatis pulih begitu database kembali aktif.
+        </div>
+      </div>
+
+      {% block content %}{% endblock %}
+    </main>
+
+    {# Modal profil tidak dirender untuk akun tamu bersama (profilnya terkunci,
+       lihat guard di routes/auth.py update_profile). #}
+    {% if current_user.is_authenticated and current_user.username != 'tamu' %}
+    {% include 'partials/_profile_modal.html' %}
+    {% endif %}
+  </div>
+
+  {# ---------- HTMX ---------- #}
+  <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"></script>
+
+  {# ---------- Alpine.js (defer wajib) ---------- #}
+  <script defer src="https://unpkg.com/alpinejs@3.13.10/dist/cdn.min.js"></script>
+
+  {# ---------- Tabler JS (Bootstrap bundle inside) ---------- #}
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/js/tabler.min.js"></script>
+
+  {# ---------- Socket.IO ---------- #}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+
+  {# ---------- SweetAlert2 (kept untuk konfirmasi delete) ---------- #}
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  {#
+    Bridge global Socket.IO -> HTMX:
+    - Server emit 'new_detection' → trigger refresh ke elemen dengan
+      atribut [data-vm-refresh-on="new_detection"].
+    - Tetap emit CustomEvent biar template anak bisa listen langsung kalau perlu.
+  #}
+  <script>
+    (function () {
+      if (typeof io === 'undefined') return;
+      const socket = io();
+
+      socket.on('new_detection', function (payload) {
+        document.querySelectorAll('[data-vm-refresh-on="new_detection"]').forEach(function (el) {
+          if (window.htmx) htmx.trigger(el, 'vm:refresh');
+        });
+        window.dispatchEvent(new CustomEvent('vm:new-detection', { detail: payload }));
+      });
+
+      window.VM = window.VM || {};
+      window.VM.socket = socket;
+    })();
+  </script>
+
+  {# ---------- Banner DB-offline: toggle tiap selesai request HTMX ---------- #}
+  <script>
+    // Partial server kirim header X-DB-Offline:1 saat MySQL mati; status 503
+    // (handler global) juga dianggap offline. Begitu request sukses tanpa flag,
+    // banner disembunyikan lagi -> recovery otomatis tanpa reload halaman.
+    document.body.addEventListener('htmx:afterRequest', function (evt) {
+      var xhr = evt.detail && evt.detail.xhr;
+      if (!xhr) return;
+      var offline = xhr.getResponseHeader('X-DB-Offline') === '1' || xhr.status === 503;
+      var banner = document.getElementById('vm-db-banner');
+      if (banner) banner.classList.toggle('d-none', !offline);
+    });
+  </script>
+
+  {# ---------- Alpine global state ---------- #}
+  <script>
+    function vmGlobal() {
+      return {
+        // Profile modal
+        profileOpen: false,
+        profileSaving: false,
+        profileShowPw: false,
+        profileForm: { username: '', current_password: '', new_password: '' },
+
+        openProfile() {
+          this.profileForm = {
+            username: {{ (current_user.username if current_user.is_authenticated else '')|tojson }},
+            current_password: '',
+            new_password: '',
+          };
+          this.profileShowPw = false;
+          this.profileOpen = true;
+        },
+
+        async saveProfile() {
+          if (!this.profileForm.current_password) {
+            Swal.fire({ icon: 'warning', title: 'Password saat ini wajib diisi' });
+            return;
+          }
+          if (!this.profileForm.username.trim()) {
+            Swal.fire({ icon: 'warning', title: 'Username tidak boleh kosong' });
+            return;
+          }
+          this.profileSaving = true;
+          try {
+            const res = await fetch('/api/profile', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                username: this.profileForm.username.trim(),
+                current_password: this.profileForm.current_password,
+                new_password: this.profileForm.new_password,
+              }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+              this.profileOpen = false;
+              Swal.fire({
+                icon: 'success',
+                title: 'Profil tersimpan',
+                text: 'Halaman akan dimuat ulang.',
+                timer: 1200,
+                showConfirmButton: false,
+              }).then(() => window.location.reload());
+            } else {
+              Swal.fire({ icon: 'error', title: 'Gagal', text: data.message || 'Permintaan ditolak.' });
+            }
+          } catch (e) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Permintaan gagal.' });
+          } finally {
+            this.profileSaving = false;
+          }
+        },
+      };
+    }
+  </script>
+
+  {% if current_user.is_authenticated %}
+  <script>
+    // Idle timeout: auto-logout setelah 30 menit TANPA aktivitas asli
+    // (gerak mouse/keyboard/klik/scroll/sentuh). Polling HTMX tiap 10 detik
+    // sengaja TIDAK dihitung sebagai aktivitas — hanya interaksi user nyata.
+    (function () {
+      // Admin 1 jam (60 mnt), guest 4 jam (240 mnt). Ganti angka menitnya di sini.
+      var IDLE_MS = {{ 60 if current_user.role == 'admin' else 240 }} * 60 * 1000;
+      var timer;
+      function doLogout() { window.location.href = '/logout'; }
+      function reset() { clearTimeout(timer); timer = setTimeout(doLogout, IDLE_MS); }
+      ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click']
+        .forEach(function (ev) { document.addEventListener(ev, reset, { passive: true }); });
+      reset();
+    })();
+  </script>
+  {% endif %}
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

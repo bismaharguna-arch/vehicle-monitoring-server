@@ -1,0 +1,95 @@
+{# Tabel rows untuk halaman riwayat. Di-swap penuh oleh HTMX dari
+   /partials/detections/list. Targeted oleh tbody#vm-history-body. #}
+{% for item in latest %}
+{% set display_ts = item.waktu_deteksi or item.timestamp %}
+<tr id="row-{{ item.id }}">
+  <td class="vm-tnum vm-muted" style="white-space: nowrap;"
+      {% if item.waktu_deteksi %}title="Waktu deteksi (detector)"{% else %}title="Waktu masuk server"{% endif %}>
+    {{ display_ts.strftime('%d/%m/%Y') }}<br>
+    <span style="font-size: 0.75rem;">{{ display_ts.strftime('%H:%M:%S') }}</span>
+  </td>
+  <td>
+    {% if item.file_foto %}
+      <img src="{{ url_for('uploaded_file', filename=item.file_foto) }}"
+           class="vm-thumb"
+           alt="thumb"
+           @click='$dispatch("vm:lightbox", {{ url_for("uploaded_file", filename=item.file_foto)|tojson }})'>
+    {% else %}
+      <span class="vm-thumb d-inline-flex align-items-center justify-content-center vm-muted"
+            style="background: var(--vm-surface-soft); cursor: default;">
+        <i class="ti ti-photo-off"></i>
+      </span>
+    {% endif %}
+  </td>
+  <td>
+    <span class="vm-plate">{{ item.plat_nomor or "—" }}</span>
+    {% if item.sudah_dikoreksi %}
+      {% set corrector = item.pengoreksi.username if item.pengoreksi else "admin" %}
+      {% set corrected_when = item.waktu_koreksi.strftime('%d %b %Y %H:%M') if item.waktu_koreksi else "—" %}
+      <i class="ti ti-circle-check ms-1" style="color: var(--vm-accent);"
+         title="Dikoreksi oleh {{ corrector }} pada {{ corrected_when }}"></i>
+    {% endif %}
+  </td>
+  <td class="vm-muted">
+    <span style="text-transform: capitalize;">{{ item.tipe_kendaraan or "—" }}</span>
+  </td>
+  <td>
+    {% if item.bahan_bakar == 'listrik' %}
+      <span class="vm-badge vm-badge--ev">EV</span>
+    {% elif item.bahan_bakar == 'bensin' %}
+      <span class="vm-badge vm-badge--bbm">BBM</span>
+    {% else %}
+      <span class="vm-badge vm-badge--unknown">Unknown</span>
+    {% endif %}
+  </td>
+  <td class="vm-tnum" style="white-space: nowrap;">
+    {% if item.confidence_score is not none and item.confidence_score > 0 %}
+      <span style="font-size: 0.85rem;">{{ "%.2f"|format(item.confidence_score) }}</span>
+      {% if item.confidence_score < 0.65 %}
+        <span class="vm-badge vm-badge--unknown ms-1"
+              style="font-size: 0.65rem; padding: 0.1rem 0.35rem;"
+              title="Confidence rendah — disarankan review manual">
+          Low
+        </span>
+      {% endif %}
+    {% else %}
+      <span class="vm-muted">—</span>
+    {% endif %}
+  </td>
+  <td class="text-end" style="white-space: nowrap;">
+    {% if current_user.role != 'guest' %}
+      <button class="vm-btn vm-btn--icon" title="Koreksi data"
+              @click='openEdit({
+                id: {{ item.id }},
+                plate: {{ (item.plat_nomor or "")|tojson }},
+                type: {{ (item.tipe_kendaraan or "unknown")|tojson }},
+                fuel: {{ (item.bahan_bakar or "unknown")|tojson }}
+              })'>
+        <i class="ti ti-edit"></i>
+      </button>
+    {% endif %}
+    {% if current_user.role == 'admin' %}
+      <button class="vm-btn vm-btn--icon is-danger" title="Hapus data"
+              @click='openDelete({
+                id: {{ item.id }},
+                timestamp: {{ display_ts.strftime("%d/%m/%Y %H:%M:%S")|tojson }},
+                plate: {{ (item.plat_nomor or "")|tojson }},
+                type: {{ (item.tipe_kendaraan or "unknown")|tojson }},
+                fuel: {{ (item.bahan_bakar or "unknown")|tojson }}
+              })'>
+        <i class="ti ti-trash"></i>
+      </button>
+    {% endif %}
+  </td>
+</tr>
+{% else %}
+<tr>
+  <td colspan="7">
+    <div class="vm-empty">
+      <i class="ti ti-search-off"></i>
+      <div class="vm-empty-title">Tidak ada data ditemukan</div>
+      <div class="vm-empty-sub">Coba ubah filter atau reset untuk melihat semua data.</div>
+    </div>
+  </td>
+</tr>
+{% endfor %}

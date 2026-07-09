@@ -1,0 +1,1284 @@
+/* =========================================================================
+   refined.css — Vehicle Monitoring
+   Custom override untuk Tabler. Filosofi: organic, natural, clean, refined.
+   Warm neutrals (stone), bukan cool grays. Shadow halus berlapis.
+   ========================================================================= */
+
+:root {
+  /* Surface & background — warm off-white, bukan abu dingin */
+  --vm-bg            : #fafaf9;
+  --vm-surface       : #ffffff;
+  --vm-surface-soft  : #f5f5f4;
+  --vm-border        : #e7e5e4;
+  --vm-border-soft   : #f5f5f4;
+
+  /* Typography */
+  --vm-text-primary  : #1c1917;
+  --vm-text-secondary: #44403c;
+  --vm-text-muted    : #78716c;
+
+  /* Domain colors */
+  --vm-ev            : #059669;
+  --vm-ev-soft       : #d1fae5;
+  --vm-bbm           : #d97706;
+  --vm-bbm-soft      : #fef3c7;
+  --vm-unknown       : #9ca3af;
+  --vm-unknown-soft  : #f3f4f6;
+
+  --vm-accent        : #4f46e5;
+  --vm-accent-soft   : #eef2ff;
+  --vm-danger        : #dc2626;
+  --vm-danger-soft   : #fee2e2;
+  --vm-live          : #ef4444;
+
+  /* Shadow scale — layered, subtle (alpha +30% utk visibility) */
+  --vm-shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.052);
+  --vm-shadow-md: 0 1px 3px rgba(28, 25, 23, 0.078), 0 1px 2px rgba(28, 25, 23, 0.052);
+  --vm-shadow-lg: 0 4px 12px rgba(28, 25, 23, 0.078), 0 2px 4px rgba(28, 25, 23, 0.052);
+
+  /* Liquid glass — panel translusen + blur latar. Highlight = kilau tepi atas. */
+  --vm-glass-bg       : rgba(255, 255, 255, 0.62);
+  --vm-glass-soft     : rgba(255, 255, 255, 0.45);
+  /* Lebih pekat — utk dropdown/popover yang isinya teks, biar tetap kebaca */
+  --vm-glass-strong   : rgba(255, 255, 255, 0.92);
+  --vm-glass-border   : rgba(255, 255, 255, 0.65);
+  --vm-glass-highlight: rgba(255, 255, 255, 0.85);
+  --vm-glass-blur     : saturate(180%) blur(20px);
+  --vm-glass-shine    : inset 0 1px 0 var(--vm-glass-highlight);
+
+  /* Ambient — blob warna lembut di latar, biar glass ada yang dibiaskan */
+  --vm-ambient:
+    radial-gradient(55rem 55rem at 8% -12%, rgba(79, 70, 229, 0.06), transparent 60%),
+    radial-gradient(48rem 48rem at 100% 0%, rgba(5, 150, 105, 0.05), transparent 55%),
+    radial-gradient(40rem 40rem at 55% 118%, rgba(217, 119, 6, 0.04), transparent 60%);
+
+  /* Radius scale */
+  --vm-radius-sm: 6px;
+  --vm-radius-md: 8px;
+  --vm-radius-lg: 12px;
+
+  /* Motion */
+  --vm-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --vm-dur-fast: 150ms;
+  --vm-dur-base: 200ms;
+  --vm-dur-slow: 300ms;
+}
+
+/* =========================================================================
+   Dark theme — override variabel saja. Diaktifkan lewat [data-bs-theme="dark"]
+   di <html> (Tabler/Bootstrap 5 ikut gelap otomatis). Tetap warm stone, bukan
+   abu dingin, biar karakternya konsisten dengan mode terang.
+   ========================================================================= */
+[data-bs-theme="dark"] {
+  --vm-bg            : #0c0a09;
+  --vm-surface       : #1c1917;
+  --vm-surface-soft  : #292524;
+  --vm-border        : #292524;
+  --vm-border-soft   : #232020;
+
+  --vm-text-primary  : #fafaf9;
+  --vm-text-secondary: #d6d3d1;
+  --vm-text-muted    : #a8a29e;
+
+  /* Hijau & oren disamakan dgn mode terang (permintaan user). Soft tetap rgba biar tampil di latar gelap. */
+  --vm-ev            : #059669;
+  --vm-ev-soft       : rgba(5, 150, 105, 0.18);
+  --vm-bbm           : #d97706;
+  --vm-bbm-soft      : rgba(217, 119, 6, 0.18);
+  --vm-unknown       : #a8a29e;
+  --vm-unknown-soft  : rgba(255, 255, 255, 0.06);
+
+  --vm-accent        : #818cf8;
+  --vm-accent-soft   : rgba(129, 140, 248, 0.15);
+  --vm-danger        : #f87171;
+  --vm-danger-soft   : rgba(248, 113, 113, 0.15);
+  --vm-live          : #f87171;
+
+  /* Shadow lebih tegas di atas background gelap — pakai hitam, bukan stone */
+  --vm-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --vm-shadow-md: 0 1px 3px rgba(0, 0, 0, 0.50), 0 1px 2px rgba(0, 0, 0, 0.40);
+  --vm-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.40);
+
+  /* Glass gelap — kaca abu pekat translusen, highlight tipis di tepi atas */
+  --vm-glass-bg       : rgba(40, 37, 36, 0.55);
+  --vm-glass-soft     : rgba(40, 37, 36, 0.40);
+  --vm-glass-strong   : rgba(28, 25, 23, 0.94);
+  --vm-glass-border   : rgba(255, 255, 255, 0.12);
+  --vm-glass-highlight: rgba(255, 255, 255, 0.14);
+
+  /* Ambient lebih nyala supaya warna nembus kaca */
+  --vm-ambient:
+    radial-gradient(55rem 55rem at 8% -12%, rgba(129, 140, 248, 0.16), transparent 60%),
+    radial-gradient(48rem 48rem at 100% 0%, rgba(52, 211, 153, 0.12), transparent 55%),
+    radial-gradient(40rem 40rem at 55% 118%, rgba(251, 191, 36, 0.08), transparent 60%);
+}
+
+/* Tombol solid: teks putih butuh fill yang cukup pekat, jadi tetap indigo/merah
+   tua (bukan varian cerah yang dipakai untuk teks & aksen di atas). */
+[data-bs-theme="dark"] .vm-btn--primary       { background: #4f46e5; }
+[data-bs-theme="dark"] .vm-btn--primary:hover { background: #4338ca; }
+[data-bs-theme="dark"] .vm-btn--danger        { background: #dc2626; }
+[data-bs-theme="dark"] .vm-btn--danger:hover  { background: #b91c1c; }
+
+/* Segmen stacked bar jadi cerah di dark — pakai teks gelap biar tetap kebaca */
+[data-bs-theme="dark"] .vm-stack-seg { color: #0c0a09; }
+
+/* =============================== Base =================================== */
+
+html, body {
+  background: var(--vm-ambient), var(--vm-bg);
+  background-attachment: fixed;
+  color: var(--vm-text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: "cv11", "ss01", "cv01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tabular numerics — KPI dan tabel data */
+.vm-tnum,
+.vm-kpi-value,
+.vm-table td.vm-num,
+.vm-table th.vm-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "cnum";
+}
+
+/* =============================== Typography ============================= */
+
+.vm-page-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--vm-text-primary);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.vm-section-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--vm-text-primary);
+  margin: 0;
+}
+
+.vm-card-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--vm-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.vm-body {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--vm-text-secondary);
+}
+
+.vm-muted {
+  color: var(--vm-text-muted);
+}
+
+/* =============================== Topbar ================================= */
+
+.vm-topbar {
+  background: var(--vm-glass-bg);
+  -webkit-backdrop-filter: var(--vm-glass-blur);
+  backdrop-filter: var(--vm-glass-blur);
+  border-bottom: 1px solid var(--vm-glass-border);
+  box-shadow: var(--vm-shadow-sm), var(--vm-glass-shine);
+  padding: 0.75rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+}
+
+.vm-brand {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--vm-text-primary);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vm-brand:hover { color: var(--vm-text-primary); }
+
+.vm-brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--vm-radius-sm);
+  background: linear-gradient(135deg, var(--vm-accent) 0%, #6366f1 100%);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+}
+
+.vm-nav {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.vm-nav-link {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--vm-text-secondary);
+  text-decoration: none;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--vm-radius-sm);
+  transition: background-color var(--vm-dur-fast) var(--vm-ease),
+              color var(--vm-dur-fast) var(--vm-ease);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.vm-nav-link:hover {
+  background: var(--vm-surface-soft);
+  color: var(--vm-text-primary);
+}
+
+.vm-nav-link.active {
+  background: var(--vm-accent-soft);
+  color: var(--vm-accent);
+}
+
+.vm-nav-link i { font-size: 1rem; }
+
+.vm-user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem 0.35rem 0.4rem;
+  background: var(--vm-glass-soft);
+  -webkit-backdrop-filter: var(--vm-glass-blur);
+  backdrop-filter: var(--vm-glass-blur);
+  border: 1px solid var(--vm-glass-border);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  color: var(--vm-text-secondary);
+}
+
+.vm-user-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a3a3a3 0%, #525252 100%);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.vm-logout-btn {
+  border: 1px solid var(--vm-border);
+  background: var(--vm-surface);
+  color: var(--vm-text-secondary);
+  border-radius: var(--vm-radius-sm);
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8125rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  text-decoration: none;
+  transition: all var(--vm-dur-fast) var(--vm-ease);
+}
+
+.vm-logout-btn:hover {
+  border-color: var(--vm-danger);
+  color: var(--vm-danger);
+  background: var(--vm-danger-soft);
+}
+
+/* =============================== Dropdown menu ========================== */
+
+.vm-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 200px;
+  background: var(--vm-surface);
+  border: 1px solid var(--vm-border);
+  border-radius: var(--vm-radius-md);
+  box-shadow: var(--vm-shadow-lg);
+  padding: 0.35rem;
+  z-index: 1040;
+}
+
+.vm-menu-header {
+  padding: 0.5rem 0.65rem 0.6rem;
+  border-bottom: 1px solid var(--vm-border-soft);
+  margin-bottom: 0.35rem;
+}
+
+.vm-menu-header-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--vm-text-primary);
+  line-height: 1.2;
+}
+
+.vm-menu-header-role {
+  font-size: 0.6875rem;
+  color: var(--vm-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.15rem;
+}
+
+.vm-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--vm-radius-sm);
+  font-size: 0.8125rem;
+  color: var(--vm-text-secondary);
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--vm-dur-fast) var(--vm-ease),
+              color var(--vm-dur-fast) var(--vm-ease);
+}
+
+.vm-menu-item:hover {
+  background: var(--vm-surface-soft);
+  color: var(--vm-text-primary);
+}
+
+.vm-menu-item i { font-size: 1rem; color: var(--vm-text-muted); }
+.vm-menu-item:hover i { color: var(--vm-text-primary); }
+
+.vm-menu-item.is-danger { color: var(--vm-danger); }
+.vm-menu-item.is-danger i { color: var(--vm-danger); }
+.vm-menu-item.is-danger:hover {
+  background: var(--vm-danger-soft);
+  color: var(--vm-danger);
+}
+
+.vm-menu-divider {
+  height: 1px;
+  background: var(--vm-border-soft);
+  margin: 0.35rem 0;
+}
+
+/* =============================== Cards ================================== */
+
+.vm-card {
+  background: var(--vm-glass-bg);
+  -webkit-backdrop-filter: var(--vm-glass-blur);
+  backdrop-filter: var(--vm-glass-blur);
+  border: 1px solid var(--vm-glass-border);
+  border-radius: var(--vm-radius-lg);
+  box-shadow: var(--vm-shadow-md), var(--vm-glass-shine);
+  overflow: hidden;
+  transition: box-shadow var(--vm-dur-base) var(--vm-ease);
+}
+
+.vm-card:hover {
+  box-shadow: var(--vm-shadow-lg), var(--vm-glass-shine);
+}
+
+.vm-card-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--vm-glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: transparent;
+}
+
+.vm-card-body { padding: 1.25rem; }
+
+.vm-card-footer {
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--vm-glass-border);
+  background: transparent;
+  font-size: 0.8125rem;
+}
+
+/* =============================== KPI Cards ============================== */
+
+.vm-kpi {
+  background: var(--vm-glass-bg);
+  -webkit-backdrop-filter: var(--vm-glass-blur);
+  backdrop-filter: var(--vm-glass-blur);
+  border: 1px solid var(--vm-glass-border);
+  border-radius: var(--vm-radius-lg);
+  box-shadow: var(--vm-shadow-md), var(--vm-glass-shine);
+  padding: 1.25rem;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow var(--vm-dur-base) var(--vm-ease),
+              transform var(--vm-dur-base) var(--vm-ease);
+}
+
+.vm-kpi::before {
+  content: "";
+  position: absolute;
+  top: 12px; bottom: 12px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--vm-border);
+}
+
+.vm-kpi.is-total::before { background: var(--vm-accent); opacity: 0.6; }
+.vm-kpi.is-ev::before    { background: var(--vm-ev); opacity: 0.6; }
+.vm-kpi.is-bbm::before   { background: var(--vm-bbm); opacity: 0.6; }
+
+.vm-kpi:hover {
+  box-shadow: var(--vm-shadow-lg), var(--vm-glass-shine);
+}
+
+.vm-kpi-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.vm-kpi-value {
+  font-size: 2.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--vm-text-primary);
+  margin: 0;
+}
+
+.vm-kpi.is-ev .vm-kpi-value  { color: var(--vm-ev); }
+.vm-kpi.is-bbm .vm-kpi-value { color: var(--vm-bbm); }
+
+.vm-kpi-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--vm-text-muted);
+  margin-top: 0.4rem;
+}
+
+.vm-kpi-delta.is-up   { color: var(--vm-ev); }
+.vm-kpi-delta.is-down { color: var(--vm-danger); }
+
+.vm-kpi-spark {
+  height: 32px;
+  margin-top: 0.5rem;
+}
+
+/* =============================== Camera ================================= */
+
+.vm-camera {
+  position: relative;
+  /* Samakan dengan rasio native kamera detector (640x480 = 4:3) supaya frame
+     mengisi pas — tanpa crop (cover) maupun bar hitam (contain). */
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(135deg, #1c1917 0%, #292524 100%);
+  border-radius: 0 0 var(--vm-radius-lg) var(--vm-radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.vm-camera-empty {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.vm-camera-empty i {
+  font-size: 48px;
+  opacity: 0.5;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.vm-camera-empty .vm-camera-title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 0.25rem;
+}
+
+.vm-camera-empty .vm-camera-sub {
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.vm-camera-status {
+  position: absolute;
+  top: 0.75rem; right: 0.75rem;
+  background: rgba(28, 25, 23, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #fafaf9;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.vm-camera-status .dot {
+  width: 6px; height: 6px;
+  background: var(--vm-live);
+  border-radius: 50%;
+}
+
+.vm-camera-meta {
+  position: absolute;
+  bottom: 0.75rem; left: 0.75rem;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.75rem;
+}
+
+.vm-camera-test {
+  position: absolute;
+  bottom: 0.75rem; right: 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--vm-radius-sm);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background var(--vm-dur-fast) var(--vm-ease);
+}
+
+.vm-camera-test:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.vm-camera-fs {
+  position: absolute;
+  bottom: 0.75rem; right: 0.75rem;
+  width: 2rem; height: 2rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: var(--vm-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--vm-dur-fast) var(--vm-ease);
+}
+
+.vm-camera-fs:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* Full frame instead of cropped, fill the screen. */
+.vm-camera:fullscreen { aspect-ratio: auto; border-radius: 0; }
+.vm-camera:fullscreen img { object-fit: contain !important; }
+
+/* Live pulse dot — feed-card title */
+.vm-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vm-live);
+  display: inline-block;
+  animation: vmPulse 2s var(--vm-ease) infinite;
+}
+
+@keyframes vmPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.9); }
+}
+
+/* =============================== Badges ================================= */
+
+.vm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  border: 1px solid transparent;
+}
+
+.vm-badge--ev {
+  background: var(--vm-ev-soft);
+  color: var(--vm-ev);
+  border-color: rgba(5, 150, 105, 0.15);
+}
+
+.vm-badge--bbm {
+  background: var(--vm-bbm-soft);
+  color: var(--vm-bbm);
+  border-color: rgba(217, 119, 6, 0.15);
+}
+
+.vm-badge--unknown {
+  background: var(--vm-surface-soft);
+  color: var(--vm-text-muted);
+  border-color: var(--vm-border);
+}
+
+.vm-badge--admin {
+  background: var(--vm-danger-soft);
+  color: var(--vm-danger);
+  border-color: rgba(220, 38, 38, 0.15);
+}
+
+.vm-badge--guest {
+  background: var(--vm-surface-soft);
+  color: var(--vm-text-secondary);
+  border-color: var(--vm-border);
+}
+
+/* =============================== Table ================================== */
+
+.vm-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.vm-table thead th {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--vm-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.75rem 1rem;
+  background: var(--vm-surface-soft);
+  border-bottom: 1px solid var(--vm-border);
+  text-align: left;
+}
+
+.vm-table tbody td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--vm-border-soft);
+  font-size: 0.875rem;
+  color: var(--vm-text-secondary);
+  vertical-align: middle;
+}
+
+/* Header kolom yang bisa diurutkan (sorting ala Task Manager Windows). */
+.vm-table thead th.vm-th-sort {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--vm-dur-fast) var(--vm-ease),
+              background-color var(--vm-dur-fast) var(--vm-ease);
+}
+.vm-table thead th.vm-th-sort:hover {
+  color: var(--vm-text);
+  background: var(--vm-surface);
+}
+.vm-th-sort .vm-th-sort-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.vm-th-sort i.vm-sort-active {
+  color: var(--vm-accent);
+  font-size: 0.9rem;
+}
+/* Panah samar pada kolom yang bisa diurutkan tapi belum aktif. */
+.vm-th-sort i.vm-sort-idle {
+  color: var(--vm-text-muted);
+  opacity: 0.35;
+  font-size: 0.9rem;
+}
+.vm-th-sort:hover i.vm-sort-idle {
+  opacity: 0.7;
+}
+
+/* Header kolom dengan dropdown filter (Tipe & Jenis). */
+.vm-table thead th.vm-th-filter-cell {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+.vm-th-filter-label {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+.vm-th-select {
+  width: 100%;
+  min-width: 90px;
+  font-size: 0.75rem;
+  padding: 0.25rem 1.4rem 0.25rem 0.5rem;
+  color: var(--vm-text);
+  background-color: var(--vm-surface);
+  border: 1px solid var(--vm-border);
+  border-radius: var(--vm-radius-sm, 6px);
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.35rem center;
+}
+.vm-th-select:hover {
+  border-color: var(--vm-accent);
+}
+.vm-th-select:focus {
+  outline: none;
+  border-color: var(--vm-accent);
+}
+
+.vm-table tbody tr {
+  transition: background-color var(--vm-dur-fast) var(--vm-ease);
+}
+
+.vm-table tbody tr:hover {
+  background: var(--vm-surface-soft);
+}
+
+.vm-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.vm-plate {
+  font-weight: 600;
+  color: var(--vm-text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.vm-thumb {
+  width: 56px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: var(--vm-radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--vm-border);
+  transition: opacity var(--vm-dur-fast) var(--vm-ease),
+              transform var(--vm-dur-fast) var(--vm-ease);
+}
+
+.vm-thumb:hover { opacity: 0.85; transform: scale(1.04); }
+
+.vm-thumb-tiny {
+  width: 36px;
+  height: 24px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--vm-border);
+}
+
+/* Input kecil (mis. field tanggal ketik-manual di grafik tren) */
+.vm-input--sm {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+/* Native date/time picker & scrollbar ikut tema gelap (mode terang dihapus) */
+html[data-bs-theme="dark"] { color-scheme: dark; }
+
+/* ===== Kontrol rentang grafik tren ===== */
+/* Tombol preset 1/7/30 (segmented) */
+.vm-seg {
+  display: inline-flex;
+  background: var(--vm-surface-soft);
+  border: 1px solid var(--vm-border);
+  border-radius: var(--vm-radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.vm-seg-btn {
+  border: none;
+  background: transparent;
+  color: var(--vm-text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  padding: 0.32rem 0.62rem;
+  border-radius: calc(var(--vm-radius-sm) - 2px);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--vm-dur-fast) var(--vm-ease),
+              color var(--vm-dur-fast) var(--vm-ease);
+}
+
+.vm-seg-btn:hover { color: var(--vm-text-primary); }
+.vm-seg-btn.is-active { background: var(--vm-accent); color: #fff; }
+
+/* Tanggal editable langsung di dalam label (.vm-card-label) */
+.vm-date-inline {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--vm-border);
+  width: 7.6em;
+  padding: 0 2px;
+  text-align: center;
+  cursor: text;
+  transition: border-color var(--vm-dur-fast) var(--vm-ease),
+              color var(--vm-dur-fast) var(--vm-ease);
+}
+
+.vm-date-inline:hover { border-bottom-color: var(--vm-accent); color: var(--vm-text-secondary); }
+.vm-date-inline:focus { outline: none; border-bottom-color: var(--vm-accent); color: var(--vm-text-primary); }
+
+.vm-date-dash { opacity: 0.7; margin: 0 0.15em; }
+
+/* =============================== Buttons ================================ */
+
+.vm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: var(--vm-radius-sm);
+  padding: 0.45rem 0.85rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--vm-dur-fast) var(--vm-ease);
+  text-decoration: none;
+  line-height: 1.2;
+}
+
+.vm-btn:focus-visible {
+  outline: 2px solid var(--vm-accent);
+  outline-offset: 2px;
+}
+
+.vm-btn--primary {
+  background: var(--vm-accent);
+  color: #fff;
+}
+.vm-btn--primary:hover { background: #4338ca; color: #fff; }
+
+.vm-btn--ghost {
+  background: var(--vm-glass-soft);
+  -webkit-backdrop-filter: var(--vm-glass-blur);
+  backdrop-filter: var(--vm-glass-blur);
+  color: var(--vm-text-secondary);
+  border-color: var(--vm-glass-border);
+}
+.vm-btn--ghost:hover {
+  background: var(--vm-glass-bg);
+  color: var(--vm-text-primary);
+}
+
+.vm-btn--danger {
+  background: var(--vm-danger);
+  color: #fff;
+}
+.vm-btn--danger:hover { background: #b91c1c; color: #fff; }
+.vm-btn--danger:focus-visible { outline-color: var(--vm-danger); }
+
+.vm-btn--icon {
+  padding: 0.35rem;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  color: var(--vm-text-muted);
+  border: 1px solid transparent;
+}
+.vm-btn--icon:hover {
+  background: var(--vm-surface-soft);
+  color: var(--vm-text-primary);
+  border-color: var(--vm-border);
+}
+.vm-btn--icon.is-danger:hover {
+  background: var(--vm-danger-soft);
+  color: var(--vm-danger);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.vm-btn--link {
+  background: transparent;
+  color: var(--vm-accent);
+  padding: 0.25rem 0.4rem;
+}
+.vm-btn--link:hover {
+  background: var(--vm-accent-soft);
+  color: var(--vm-accent);
+}
+
+.vm-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =============================== Forms ================================== */
+
+.vm-input,
+.vm-select {
+  width: 100%;
+  font-size: 0.875rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--vm-surface);
+  color: var(--vm-text-primary);
+  border: 1px solid var(--vm-border);
+  border-radius: var(--vm-radius-sm);
+  transition: border-color var(--vm-dur-fast) var(--vm-ease),
+              box-shadow var(--vm-dur-fast) var(--vm-ease);
+  appearance: none;
+}
+
+.vm-input:focus,
+.vm-select:focus {
+  outline: none;
+  border-color: var(--vm-accent);
+  box-shadow: 0 0 0 3px var(--vm-accent-soft);
+}
+
+.vm-input::placeholder { color: var(--vm-text-muted); }
+
+.vm-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--vm-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
+}
+
+.vm-field { margin-bottom: 1rem; }
+
+.vm-input-group {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--vm-border);
+  border-radius: var(--vm-radius-sm);
+  background: var(--vm-surface);
+  transition: border-color var(--vm-dur-fast) var(--vm-ease),
+              box-shadow var(--vm-dur-fast) var(--vm-ease);
+}
+
+.vm-input-group:focus-within {
+  border-color: var(--vm-accent);
+  box-shadow: 0 0 0 3px var(--vm-accent-soft);
+}
+
+.vm-input-group .vm-input-icon {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.7rem;
+  color: var(--vm-text-muted);
+  border-right: 1px solid var(--vm-border-soft);
+}
+
+.vm-input-group .vm-input {
+  border: none;
+  background: transparent;
+}
+
+.vm-input-group .vm-input:focus {
+  box-shadow: none;
+}
+
+/* =============================== Filter sidebar ========================= */
+
+.vm-filter {
+  background: var(--vm-surface);
+  border: 1px solid var(--vm-border);
+  border-radius: var(--vm-radius-lg);
+  box-shadow: var(--vm-shadow-sm);
+  padding: 1.25rem;
+}
+
+/* =============================== Empty state ============================ */
+
+.vm-empty {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--vm-text-muted);
+}
+
+.vm-empty i {
+  font-size: 2rem;
+  opacity: 0.4;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.vm-empty .vm-empty-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--vm-text-secondary);
+  margin: 0 0 0.25rem;
+}
+
+.vm-empty .vm-empty-sub {
+  font-size: 0.8125rem;
+  color: var(--vm-text-muted);
+}
+
+/* =============================== Confirm dialog ========================= */
+
+.vm-icon-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vm-icon-circle.is-danger {
+  background: var(--vm-danger-soft);
+  color: var(--vm-danger);
+}
+.vm-icon-circle.is-danger i { font-size: 1.25rem; }
+
+/* Varian header modal user — Tambah (accent/indigo) vs Edit (amber) dibedakan
+   warnanya biar sekali lihat langsung tahu lagi di mode mana. */
+.vm-icon-circle.is-add  { background: var(--vm-accent-soft); color: var(--vm-accent); }
+.vm-icon-circle.is-edit { background: var(--vm-bbm-soft);    color: var(--vm-bbm); }
+.vm-icon-circle.is-add i, .vm-icon-circle.is-edit i { font-size: 1.2rem; }
+
+/* Konteks akun yang sedang diedit — ditaruh di atas form mode Edit */
+.vm-edit-target {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  margin-bottom: 1.25rem;
+  background: var(--vm-bbm-soft);
+  border: 1px solid var(--vm-glass-border);
+  border-left: 3px solid var(--vm-bbm);
+  border-radius: var(--vm-radius-md);
+}
+.vm-edit-target-name { font-size: 0.9375rem; font-weight: 600; color: var(--vm-text-primary); line-height: 1.2; }
+.vm-edit-target-sub  { font-size: 0.75rem; color: var(--vm-text-muted); margin-top: 0.1rem; }
+
+/* Hint mode Tambah — banner info halus dengan aksen accent */
+.vm-add-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 1.25rem;
+  background: var(--vm-accent-soft);
+  border: 1px solid var(--vm-glass-border);
+  border-left: 3px solid var(--vm-accent);
+  border-radius: var(--vm-radius-md);
+  font-size: 0.8125rem;
+  color: var(--vm-text-secondary);
+}
+.vm-add-hint i { color: var(--vm-accent); font-size: 1rem; flex-shrink: 0; }
+
+.vm-detail-list {
+  background: var(--vm-surface-soft);
+  border: 1px solid var(--vm-border-soft);
+  border-radius: var(--vm-radius-md);
+  padding: 0.6rem 0.85rem;
+}
+
+.vm-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  font-size: 0.8125rem;
+  border-bottom: 1px solid var(--vm-border-soft);
+}
+
+.vm-detail-row:last-child { border-bottom: none; }
+
+.vm-detail-row dt {
+  color: var(--vm-text-muted);
+  font-weight: 500;
+  margin: 0;
+}
+
+.vm-detail-row dd {
+  color: var(--vm-text-primary);
+  font-weight: 500;
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* =============================== Modal (Alpine) ========================= */
+
+.vm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 25, 23, 0.4);
+  backdrop-filter: blur(6px) saturate(140%);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.vm-modal {
+  background: var(--vm-surface);
+  border: 1px solid var(--vm-border);
+  border-radius: var(--vm-radius-lg);
+  box-shadow: var(--vm-shadow-lg);
+  max-width: 480px;
+  width: 100%;
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+}
+
+.vm-modal--lg { max-width: 720px; }
+
+.vm-modal-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--vm-border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vm-modal-body { padding: 1.25rem; }
+
+.vm-modal-footer {
+  padding: 0.85rem 1.25rem;
+  border-top: 1px solid var(--vm-glass-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  background: transparent;
+}
+
+/* =============================== Stacked bar (EV vs BBM) ================ */
+
+.vm-stack {
+  display: flex;
+  width: 100%;
+  height: 28px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--vm-surface-soft);
+  border: 1px solid var(--vm-border-soft);
+}
+
+.vm-stack-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  transition: filter var(--vm-dur-fast) var(--vm-ease);
+}
+
+.vm-stack-seg:hover { filter: brightness(1.05); }
+.vm-stack-seg.is-ev      { background: var(--vm-ev); }
+.vm-stack-seg.is-bbm     { background: var(--vm-bbm); }
+.vm-stack-seg.is-unknown { background: var(--vm-unknown); }
+
+.vm-stack-legend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.65rem;
+  font-size: 0.8125rem;
+  color: var(--vm-text-secondary);
+}
+
+.vm-stack-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+
+/* =============================== HTMX feedback ========================== */
+
+.htmx-indicator {
+  opacity: 0;
+  transition: opacity 200ms ease-in;
+}
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  opacity: 1;
+}
+
+/* Subtle fade on swap */
+.htmx-swapping {
+  opacity: 0;
+  transition: opacity 100ms ease-out;
+}
+.htmx-settling {
+  opacity: 1;
+  transition: opacity 200ms ease-in;
+}
+
+/* =========================== SweetAlert2 theming ======================= */
+/* Bikin semua dialog/toast Swal ikut variabel tema (terang & gelap) biar nyatu. */
+
+.swal2-popup {
+  background: var(--vm-surface) !important;
+  color: var(--vm-text-primary) !important;
+  border: 1px solid var(--vm-border) !important;
+  border-radius: var(--vm-radius-lg) !important;
+  box-shadow: var(--vm-shadow-lg) !important;
+  font-family: inherit !important;
+}
+
+.swal2-title { color: var(--vm-text-primary) !important; }
+.swal2-html-container,
+.swal2-content { color: var(--vm-text-muted) !important; }
+
+.swal2-actions { gap: 0.5rem; }
+
+/* Tombol pakai gaya tombol vm. confirmButtonColor inline tetap menang utk warna,
+   ini cuma menyeragamkan bentuk, padding, dan radius. */
+.swal2-styled {
+  border-radius: var(--vm-radius-md) !important;
+  font-weight: 600 !important;
+  padding: 0.55rem 1.1rem !important;
+  box-shadow: none !important;
+}
+/* confirm background TIDAK dipaksa — biar confirmButtonColor inline (mis. merah utk hapus) tetap menang */
+.swal2-styled.swal2-cancel {
+  background: var(--vm-surface-soft) !important;
+  color: var(--vm-text-primary) !important;
+  border: 1px solid var(--vm-border) !important;
+}
+.swal2-styled:focus { box-shadow: 0 0 0 3px var(--vm-accent-soft) !important; }
+
+/* Backdrop senada dgn modal Alpine */
+.swal2-container.swal2-backdrop-show {
+  background: rgba(28, 25, 23, 0.4) !important;
+  backdrop-filter: blur(6px) saturate(140%);
+}
+
+/* Ikon warning/sukses/error pakai warna domain vm */
+.swal2-icon.swal2-warning { border-color: var(--vm-bbm) !important; color: var(--vm-bbm) !important; }
+.swal2-icon.swal2-success { border-color: var(--vm-ev) !important; color: var(--vm-ev) !important; }
+.swal2-icon.swal2-success [class^='swal2-success-line'] { background-color: var(--vm-ev) !important; }
+.swal2-icon.swal2-success .swal2-success-ring { border-color: var(--vm-ev-soft) !important; }
+.swal2-icon.swal2-error { border-color: var(--vm-danger) !important; color: var(--vm-danger) !important; }
+.swal2-icon.swal2-error [class^='swal2-x-mark-line'] { background-color: var(--vm-danger) !important; }
+.swal2-icon.swal2-info { border-color: var(--vm-accent) !important; color: var(--vm-accent) !important; }
+
+/* Toast (timer sukses) */
+.swal2-toast { background: var(--vm-surface) !important; box-shadow: var(--vm-shadow-lg) !important; }
+
+/* =============================== Responsive ============================= */
+
+@media (max-width: 768px) {
+  .vm-kpi-value { font-size: 2rem; }
+  .vm-camera { aspect-ratio: 4 / 3; }
+}

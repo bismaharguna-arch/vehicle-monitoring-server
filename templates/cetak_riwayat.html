@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Riwayat Deteksi Kendaraan</title>
+  <style>
+    /* Halaman cetak: sengaja putih & sederhana, lepas dari tema gelap aplikasi
+       supaya hemat tinta dan rapi di kertas. */
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: #1a1a1a;
+      margin: 24px;
+      font-size: 12px;
+    }
+    .report-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #333;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    .report-head .meta { font-size: 11px; color: #555; text-align: right; }
+    .filters {
+      background: #f5f5f5;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 16px;
+      font-size: 11px;
+    }
+    .filters strong { color: #333; }
+    .filters .none { color: #888; font-style: italic; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: #333;
+      color: #fff;
+      text-align: left;
+      padding: 7px 9px;
+      font-size: 11px;
+    }
+    tbody td {
+      padding: 6px 9px;
+      border-bottom: 1px solid #e0e0e0;
+      vertical-align: top;
+    }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .badge {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .badge-ev { background: #d1fae5; color: #065f46; }
+    .badge-bbm { background: #fef3c7; color: #92400e; }
+    .badge-unknown { background: #eee; color: #666; }
+    .corrected { color: #4f46e5; font-weight: 600; }
+    .footer-note {
+      margin-top: 16px;
+      font-size: 10px;
+      color: #888;
+      text-align: center;
+    }
+    .toolbar { margin-bottom: 16px; }
+    .toolbar button {
+      font-size: 12px;
+      padding: 6px 14px;
+      cursor: pointer;
+      border: 1px solid #333;
+      background: #fff;
+      border-radius: 5px;
+    }
+    @media print {
+      body { margin: 0; }
+      .toolbar { display: none; }
+      thead { display: table-header-group; } /* ulang header tiap halaman */
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <button onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+  </div>
+
+  <div class="report-head">
+    <div>
+      <h1>Laporan Riwayat Deteksi Kendaraan</h1>
+      <div style="font-size:11px;color:#555;">Sistem Monitoring Klasifikasi Kendaraan Listrik &amp; Konvensional</div>
+    </div>
+    <div class="meta">
+      Dicetak: {{ generated_at.strftime('%d %B %Y, %H:%M:%S') }}<br>
+      Total data: <strong>{{ total }}</strong> entri
+    </div>
+  </div>
+
+  <div class="filters">
+    <strong>Filter aktif:</strong>
+    {% set ns = namespace(any=false) %}
+    {% if filters.date %}<span> Tanggal: <strong>{{ filters.date }}</strong>;</span>{% set ns.any = true %}{% endif %}
+    {% if filters.date_from or filters.date_to %}<span> Tanggal: <strong>{{ filters.date_from or '...' }} s/d {{ filters.date_to or '...' }}</strong>;</span>{% set ns.any = true %}{% endif %}
+    {% if filters.jam_start or filters.jam_end %}<span> Jam: <strong>{{ filters.jam_start or '00:00' }}–{{ filters.jam_end or '23:59' }}</strong>;</span>{% set ns.any = true %}{% endif %}
+    {% if filters.plate %}<span> Plat: <strong>{{ filters.plate }}</strong>;</span>{% set ns.any = true %}{% endif %}
+    {% if filters.type %}<span> Tipe: <strong>{{ filters.type|capitalize }}</strong>;</span>{% set ns.any = true %}{% endif %}
+    {% if filters.fuel %}<span> Bahan bakar: <strong>{{ fuel_label.get(filters.fuel, filters.fuel) }}</strong>;</span>{% set ns.any = true %}{% endif %}
+    {% if not ns.any %}<span class="none">Semua data (tanpa filter)</span>{% endif %}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:40px;">No</th>
+        <th>Waktu</th>
+        <th>Plat Nomor</th>
+        <th>Tipe</th>
+        <th>Bahan Bakar</th>
+        <th class="num">Conf.</th>
+        <th>Koreksi</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      {% set ts = item.waktu_deteksi or item.timestamp %}
+      <tr>
+        <td class="num">{{ loop.index }}</td>
+        <td>{{ ts.strftime('%Y-%m-%d %H:%M:%S') if ts else '—' }}</td>
+        <td>{{ item.plat_nomor or '—' }}</td>
+        <td>{{ (item.tipe_kendaraan or '—')|capitalize }}</td>
+        <td>
+          {% if item.bahan_bakar == 'listrik' %}
+            <span class="badge badge-ev">EV</span>
+          {% elif item.bahan_bakar == 'bensin' %}
+            <span class="badge badge-bbm">BBM</span>
+          {% else %}
+            <span class="badge badge-unknown">Unknown</span>
+          {% endif %}
+        </td>
+        <td class="num">{{ "%.2f"|format(item.confidence_score) if item.confidence_score else '—' }}</td>
+        <td>
+          {% if item.sudah_dikoreksi %}
+            <span class="corrected">✓ {{ item.pengoreksi.username if item.pengoreksi else 'admin' }}</span>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center;padding:24px;color:#888;">Tidak ada data untuk filter ini.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="footer-note">
+    Laporan dihasilkan otomatis oleh Sistem Monitoring Kendaraan — {{ total }} entri.
+  </div>
+
+  <script>
+    // Auto-buka dialog cetak begitu halaman siap (kecuali sumber data kosong).
+    window.addEventListener('load', function () {
+      {% if total > 0 %}setTimeout(function () { window.print(); }, 300);{% endif %}
+    });
+  </script>
+
+</body>
+</html>

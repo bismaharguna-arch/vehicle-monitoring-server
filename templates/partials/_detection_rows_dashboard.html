@@ -1,0 +1,40 @@
+{# Mini-table 7 deteksi terakhir untuk dashboard sidebar.
+   Di-swap penuh (innerHTML) saat HTMX trigger 'vm:refresh'.
+   Targeted oleh tbody#vm-recent-body. #}
+{% for item in latest %}
+{% set display_ts = item.waktu_deteksi or item.timestamp %}
+<tr>
+  <td class="vm-tnum vm-muted" style="width: 70px;">{{ display_ts.strftime('%H:%M') }}</td>
+  <td>
+    {% if item.file_foto %}
+      <img src="{{ url_for('uploaded_file', filename=item.file_foto) }}"
+           class="vm-thumb-tiny" alt="thumb">
+    {% else %}
+      <span class="vm-thumb-tiny d-inline-flex align-items-center justify-content-center vm-muted"
+            style="background: var(--vm-surface-soft);">
+        <i class="ti ti-photo-off" style="font-size: 0.85rem;"></i>
+      </span>
+    {% endif %}
+  </td>
+  <td class="vm-plate">{{ item.plat_nomor or "—" }}</td>
+  <td>
+    {% if item.bahan_bakar == 'listrik' %}
+      <span class="vm-badge vm-badge--ev">EV</span>
+    {% elif item.bahan_bakar == 'bensin' %}
+      <span class="vm-badge vm-badge--bbm">BBM</span>
+    {% else %}
+      <span class="vm-badge vm-badge--unknown">?</span>
+    {% endif %}
+  </td>
+</tr>
+{% else %}
+<tr>
+  <td colspan="4">
+    <div class="vm-empty" style="padding: 1.5rem 1rem;">
+      <i class="ti ti-inbox"></i>
+      <div class="vm-empty-title">Belum ada deteksi</div>
+      <div class="vm-empty-sub">Aktivitas akan muncul di sini secara realtime.</div>
+    </div>
+  </td>
+</tr>
+{% endfor %}

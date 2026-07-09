@@ -1,0 +1,61 @@
+{# Isi lengkap area hasil riwayat: tabel + bar pagination, di-swap utuh ke
+   #vm-history-result (innerHTML).
+
+   Sengaja BUKAN baris <tr> telanjang + OOB <div>: campuran keduanya dalam satu
+   respons bikin parser HTML foster-parent <div> keluar dari konteks tabel,
+   sehingga swap-nya gagal. Membungkus semuanya dalam konteks <div> aman. #}
+
+{# Header kolom bisa diurutkan ala Task Manager Windows: klik = urut naik,
+   klik lagi = urut turun; panah ↑/↓ menandai kolom & arah aktif, panah samar
+   menandai kolom yang bisa diurutkan. vmSortBy() ada di history.html. #}
+{% macro sort_th(key, label, extra_class="") %}
+  <th class="vm-th-sort {{ extra_class }}" role="button" tabindex="0"
+      onclick="vmSortBy('{{ key }}')"
+      onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();vmSortBy('{{ key }}')}"
+      title="Klik untuk urutkan">
+    <span class="vm-th-sort-inner">
+      {{ label }}
+      {% if sort == key %}
+        <i class="ti ti-arrow-{{ 'up' if sort_dir == 'asc' else 'down' }} vm-sort-active"></i>
+      {% else %}
+        <i class="ti ti-arrows-sort vm-sort-idle"></i>
+      {% endif %}
+    </span>
+  </th>
+{% endmacro %}
+
+{# Header kolom dengan dropdown filter (Tipe & Jenis): pilih nilai langsung di
+   header alih-alih sorting. vmHeaderFilter() ada di history.html. #}
+{% macro filter_th(field, label, options, current) %}
+  <th class="vm-th-filter-cell">
+    <span class="vm-th-filter-label">{{ label }}</span>
+    <select class="vm-th-select" onchange="vmHeaderFilter('{{ field }}', this.value)"
+            aria-label="Filter {{ label }}">
+      {% for val, text in options %}
+        <option value="{{ val }}" {% if current == val or (current in (none, '', 'all') and val == 'all') %}selected{% endif %}>{{ text }}</option>
+      {% endfor %}
+    </select>
+  </th>
+{% endmacro %}
+
+<div class="table-responsive">
+  <table class="vm-table">
+    <thead>
+      <tr>
+        {{ sort_th('waktu', 'Waktu') }}
+        <th>Foto</th>
+        <th>Plat Nomor</th>
+        {{ filter_th('type', 'Tipe', [('all','Semua'),('mobil','Mobil'),('motor','Motor'),('unknown','Unknown')], f_type) }}
+        {{ filter_th('fuel', 'Jenis', [('all','Semua'),('listrik','EV'),('bensin','BBM'),('unknown','Unknown')], f_fuel) }}
+        {{ sort_th('conf', 'Conf.') }}
+        <th class="text-end">Aksi</th>
+      </tr>
+    </thead>
+    <tbody id="vm-history-body">
+      {% include 'partials/_detection_rows_history.html' %}
+    </tbody>
+  </table>
+</div>
+<div class="vm-card-footer">
+  {% include 'partials/_pagination.html' %}
+</div>

@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% set active_nav = 'users' %}
+
+{% block title %}Kelola User — Vehicle Monitoring{% endblock %}
+
+{% block content %}
+
+<div x-data="userPage()">
+
+  <div class="d-flex align-items-baseline justify-content-between mb-4">
+    <div>
+      <h1 class="vm-page-title">Kelola Pengguna</h1>
+    </div>
+    <button class="vm-btn vm-btn--primary" @click="openAdd()">
+      <i class="ti ti-plus"></i> Tambah User
+    </button>
+  </div>
+
+  <div class="vm-card">
+    <div class="vm-card-header">
+      <span class="vm-section-title d-inline-flex align-items-center gap-2">
+        <i class="ti ti-users vm-muted"></i> Daftar Pengguna
+      </span>
+      <span class="vm-card-label">{{ users|length }} akun</span>
+    </div>
+    <div class="table-responsive">
+      <table class="vm-table">
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Username</th>
+            <th>Role</th>
+            <th class="text-end">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="vm-user-body">
+          {% include 'partials/_user_rows.html' %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# =================== Modal user (Add + Edit unified) =================== #}
+  <template x-teleport="body">
+    <div x-show="formOpen" x-cloak
+         x-transition.opacity
+         class="vm-modal-backdrop"
+         @keydown.escape.window="formOpen = false"
+         @click.self="formOpen = false">
+      <div class="vm-modal" x-transition>
+        <div class="vm-modal-header">
+          <span class="vm-section-title d-inline-flex align-items-center gap-2">
+            <span class="vm-icon-circle" :class="isEdit ? 'is-edit' : 'is-add'">
+              <i :class="isEdit ? 'ti ti-user-edit' : 'ti ti-user-plus'"></i>
+            </span>
+            <span x-text="isEdit ? 'Edit User' : 'Tambah User Baru'"></span>
+          </span>
+          <button class="vm-btn vm-btn--icon" @click="formOpen = false">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+
+        <div class="vm-modal-body">
+          {# Konteks akun yang diedit — penegas kuat biar tidak ketuker dgn mode Tambah #}
+          <div class="vm-edit-target" x-show="isEdit" x-cloak>
+            <span class="vm-user-avatar" style="width: 38px; height: 38px; font-size: 0.95rem;"
+                  x-text="(form.username || '?').charAt(0).toUpperCase()"></span>
+            <div>
+              <div class="vm-edit-target-name" x-text="form.username || '—'"></div>
+              <div class="vm-edit-target-sub">Mengubah akun yang sudah ada</div>
+            </div>
+          </div>
+
+          <div class="vm-field">
+            <label class="vm-label">Username</label>
+            <div class="vm-input-group">
+              <span class="vm-input-icon"><i class="ti ti-user"></i></span>
+              <input type="text" class="vm-input"
+                     x-model="form.username"
+                     placeholder="Contoh: budi.santoso">
+            </div>
+          </div>
+
+          <div class="vm-field">
+            <label class="vm-label" x-text="isEdit ? 'Password Baru (opsional)' : 'Password'"></label>
+            <div class="vm-input-group">
+              <span class="vm-input-icon"><i class="ti ti-lock"></i></span>
+              <input :type="showPw ? 'text' : 'password'"
+                     class="vm-input"
+                     x-model="form.password"
+                     :placeholder="isEdit ? 'Kosongkan jika tidak diubah' : 'Wajib diisi'">
+              <button type="button" class="vm-pw-toggle"
+                      style="background: transparent; border: none; padding: 0 0.7rem; color: var(--vm-text-muted);"
+                      @click="showPw = !showPw">
+                <i :class="showPw ? 'ti ti-eye-off' : 'ti ti-eye'"></i>
+              </button>
+            </div>
+            <div class="vm-muted" style="font-size: 0.75rem; margin-top: 0.35rem;"
+                 x-show="isEdit">
+              Biarkan kosong untuk mempertahankan password lama.
+            </div>
+          </div>
+
+          <div class="vm-field" style="margin-bottom: 0;">
+            <label class="vm-label">Role</label>
+            <select class="vm-select" x-model="form.role">
+              <option value="admin">Admin — akses penuh</option>
+              <option value="guest">Guest — hanya lihat</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="vm-modal-footer">
+          <button class="vm-btn vm-btn--ghost" @click="formOpen = false">Batal</button>
+          <button class="vm-btn vm-btn--primary" @click="save()" :disabled="saving">
+            <template x-if="!saving">
+              <span class="d-inline-flex align-items-center gap-1">
+                <i :class="isEdit ? 'ti ti-device-floppy' : 'ti ti-user-plus'"></i>
+                <span x-text="isEdit ? 'Simpan Perubahan' : 'Tambah User'"></span>
+              </span>
+            </template>
+            <template x-if="saving"><span>Menyimpan...</span></template>
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+</div>
+
+<style>
+  [x-cloak] { display: none !important; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function userPage() {
+    return {
+      formOpen: false,
+      isEdit: false,
+      saving: false,
+      showPw: false,
+      form: { id: null, username: '', password: '', role: 'guest' },
+
+      _reset() {
+        this.form = { id: null, username: '', password: '', role: 'guest' };
+        this.showPw = false;
+      },
+
+      openAdd() {
+        this._reset();
+        this.isEdit = false;
+        this.formOpen = true;
+      },
+
+      openEdit(user) {
+        this._reset();
+        this.isEdit = true;
+        this.form = { id: user.id, username: user.username, password: '', role: user.role };
+        this.formOpen = true;
+      },
+
+      async save() {
+        if (!this.form.username.trim()) {
+          Swal.fire({ icon: 'warning', title: 'Username wajib diisi' });
+          return;
+        }
+        if (!this.isEdit && !this.form.password) {
+          Swal.fire({ icon: 'warning', title: 'Password wajib diisi untuk user baru' });
+          return;
+        }
+
+        this.saving = true;
+        const payload = {
+          username: this.form.username.trim(),
+          role: this.form.role,
+        };
+        if (this.form.password) payload.password = this.form.password;
+
+        const url = this.isEdit ? `/api/users/${this.form.id}` : '/api/users';
+        const method = this.isEdit ? 'PATCH' : 'POST';
+
+        try {
+          const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            this.formOpen = false;
+            Swal.fire({ icon: 'success', title: 'Tersimpan', timer: 1000, showConfirmButton: false });
+            htmx.ajax('GET', "{{ url_for('user_mgt.partial_users') }}", { target: '#vm-user-body', swap: 'innerHTML' });
+          } else {
+            Swal.fire({ icon: 'error', title: 'Gagal', text: data.message || 'Permintaan ditolak.' });
+          }
+        } catch (e) {
+          Swal.fire({ icon: 'error', title: 'Error', text: 'Permintaan gagal.' });
+        } finally {
+          this.saving = false;
+        }
+      },
+    };
+  }
+
+  function vmDeleteUser(id, username) {
+    Swal.fire({
+      title: `Hapus "${username}"?`,
+      text: 'Akun ini akan dihapus permanen.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      confirmButtonText: 'Ya, Hapus',
+      cancelButtonText: 'Batal',
+    }).then(async (r) => {
+      if (!r.isConfirmed) return;
+      try {
+        const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok) {
+          Swal.fire({ icon: 'success', title: 'Terhapus', timer: 1000, showConfirmButton: false });
+          htmx.ajax('GET', "{{ url_for('user_mgt.partial_users') }}", { target: '#vm-user-body', swap: 'innerHTML' });
+        } else {
+          Swal.fire({ icon: 'error', title: 'Gagal', text: data.message || 'Permintaan ditolak.' });
+        }
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Permintaan gagal.' });
+      }
+    });
+  }
+</script>
+{% endblock %}

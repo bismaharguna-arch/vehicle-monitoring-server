@@ -1,0 +1,27 @@
+{# Bar pagination riwayat. Tombol panggil vmGoPage() (set hidden input #vm-page-input
+   lalu trigger ulang form filter), jadi page ikut terbawa di tiap refresh. #}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <span class="vm-card-label" style="text-transform: none; letter-spacing: 0;">
+    {% if total > 0 %}
+      Menampilkan {{ (page - 1) * per_page + 1 }}–{{ (page - 1) * per_page + items_count }} dari {{ total }} entri
+    {% else %}
+      Tidak ada data
+    {% endif %}
+  </span>
+
+  <div class="d-flex align-items-center gap-2">
+    <button type="button" class="vm-btn vm-btn--ghost"
+            onclick="vmGoPage({{ page - 1 }})"
+            {% if page <= 1 %}disabled{% endif %}>
+      <i class="ti ti-chevron-left"></i> Sebelumnya
+    </button>
+    <span class="vm-card-label" style="text-transform: none; letter-spacing: 0;">
+      Hal {{ page }} / {{ total_pages }}
+    </span>
+    <button type="button" class="vm-btn vm-btn--ghost"
+            onclick="vmGoPage({{ page + 1 }})"
+            {% if page >= total_pages %}disabled{% endif %}>
+      Berikutnya <i class="ti ti-chevron-right"></i>
+    </button>
+  </div>
+</div>

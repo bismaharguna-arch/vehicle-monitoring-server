@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+{% set active_nav = 'dashboard' %}
+
+{% block title %}Dashboard — Vehicle Monitoring{% endblock %}
+
+{% block head_extra %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-baseline justify-content-between mb-4">
+  <div>
+    <h1 class="vm-page-title">Dashboard</h1>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  {# ============================== KIRI (8/12) ============================== #}
+  <div class="col-lg-8 d-flex flex-column gap-4">
+
+    {# ----- Camera feed ----- #}
+    <div class="vm-card" style="overflow: hidden;">
+      <div class="vm-card-header">
+        <span class="vm-section-title d-inline-flex align-items-center gap-2">
+          <span class="vm-live-dot"></span> Live CCTV Feed
+        </span>
+      </div>
+      <div class="vm-camera"
+           x-data='cameraFeed({{ (detector_preview_url or "")|tojson }})'
+           x-init="init()">
+        <div class="vm-camera-status">
+          <span class="dot"></span> <span x-text="feedOk && baseUrl ? 'LIVE' : 'OFFLINE'"></span>
+        </div>
+
+        {# Live MJPEG dari detector. Auto-retry tiap 5 dtk kalau detector belum
+           jalan saat dashboard di-buka. Lihat cameraFeed() di block scripts. #}
+        <img x-show="feedOk && baseUrl"
+             :src="src"
+             alt="Live feed dari detector"
+             @error="onError()"
+             @load="onLoad()"
+             style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; border-radius: inherit;">
+
+        <div class="vm-camera-empty" x-show="!feedOk || !baseUrl">
+          <i class="ti ti-video-off"></i>
+          <div class="vm-camera-title" x-text="baseUrl ? 'Menunggu sinyal kamera' : 'Live preview disabled'"></div>
+          <div class="vm-camera-sub"
+               x-text="baseUrl ? 'Auto-retry tiap 5 detik...' : 'Set DETECTOR_PREVIEW_URL di .env untuk aktifkan.'"></div>
+        </div>
+
+        <div class="vm-camera-meta">Last seen: —</div>
+
+        <button class="vm-camera-fs" @click="toggleFullscreen()"
+                title="Layar penuh" aria-label="Layar penuh">
+          <i class="ti ti-maximize"></i>
+        </button>
+      </div>
+    </div>
+
+    {# ----- KPI cards (HTMX swap target) ----- #}
+    {# every 10s = fallback polling kalau Socket.IO event tidak masuk. #}
+    <div hx-get="{{ url_for('dashboard.partial_stats') }}"
+         hx-trigger="vm:refresh from:body, every 10s"
+         hx-swap="innerHTML">
+      {% include 'partials/_stats_cards.html' %}
+    </div>
+
+    {# ----- Time-series chart ----- #}
+    <div class="vm-card">
+      <div class="vm-card-header">
+        <div>
+          <span class="vm-section-title">Tren Deteksi</span>
+          {# Label = dua tanggal yang bisa diklik & diedit langsung #}
+          <span class="vm-card-label d-block" style="margin-top: 3px;">
+            <input type="text" id="vm-trend-from" class="vm-date-inline" placeholder="dd/mm/yyyy"
+                   inputmode="numeric" title="Klik untuk ganti tanggal" aria-label="Dari tanggal">
+            <span class="vm-date-dash">–</span>
+            <input type="text" id="vm-trend-to" class="vm-date-inline" placeholder="dd/mm/yyyy"
+                   inputmode="numeric" title="Klik untuk ganti tanggal" aria-label="Sampai tanggal">
+            <span id="vm-trend-gran"> · per jam</span>
+          </span>
+        </div>
+
+        <div class="vm-seg" role="group" aria-label="Rentang waktu">
+          <button type="button" class="vm-seg-btn is-active" data-range="1">1 Hari</button>
+          <button type="button" class="vm-seg-btn" data-range="7">7 Hari</button>
+          <button type="button" class="vm-seg-btn" data-range="30">30 Hari</button>
+        </div>
+      </div>
+      <div class="vm-card-body">
+        <div style="height: 220px;">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {# ============================== KANAN (4/12) ============================ #}
+  <div class="col-lg-4 d-flex flex-column gap-4">
+
+    {# ----- Komparasi EV vs BBM (stacked bar) ----- #}
+    <div class="vm-card">
+      <div class="vm-card-header">
+        <span class="vm-section-title">Komparasi Realtime</span>
+      </div>
+      <div class="vm-card-body" id="vm-compare"
+           hx-get="{{ url_for('dashboard.partial_stats') }}"
+           hx-trigger="vm:refresh from:body, every 10s"
+           hx-swap="none"
+           data-vm-refresh-on="new_detection">
+        {% set ev_pct = (total_ev * 100 / total) if total else 0 %}
+        {% set bbm_pct = (total_gas * 100 / total) if total else 0 %}
+        {% set unk_pct = (total_unknown * 100 / total) if total else 0 %}
+        <div class="vm-stack" id="vmStackBar">
+          {% if total > 0 %}
+            <div class="vm-stack-seg is-ev"  style="width: {{ ev_pct }}%;"
+                 title="EV: {{ total_ev }}">
+              {% if ev_pct >= 12 %}{{ "%.0f"|format(ev_pct) }}%{% endif %}
+            </div>
+            <div class="vm-stack-seg is-bbm" style="width: {{ bbm_pct }}%;"
+                 title="BBM: {{ total_gas }}">
+              {% if bbm_pct >= 12 %}{{ "%.0f"|format(bbm_pct) }}%{% endif %}
+            </div>
+            <div class="vm-stack-seg is-unknown" style="width: {{ unk_pct }}%;"
+                 title="Unknown: {{ total_unknown }}">
+              {% if unk_pct >= 12 %}{{ "%.0f"|format(unk_pct) }}%{% endif %}
+            </div>
+          {% endif %}
+        </div>
+        <div class="vm-stack-legend">
+          <span>
+            <span class="vm-stack-dot" style="background: var(--vm-ev);"></span>
+            EV · <span class="vm-tnum" id="vmLegendEv">{{ total_ev }}</span>
+          </span>
+          <span>
+            <span class="vm-stack-dot" style="background: var(--vm-bbm);"></span>
+            BBM · <span class="vm-tnum" id="vmLegendBbm">{{ total_gas }}</span>
+          </span>
+          <span>
+            <span class="vm-stack-dot" style="background: var(--vm-unknown);"></span>
+            Unknown · <span class="vm-tnum" id="vmLegendUnk">{{ total_unknown }}</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    {# ----- Aktivitas terbaru (HTMX swap target) — flex-grow biar mentok ke bawah,
+            tabelnya scroll internal supaya tinggi kolom kanan rata dengan kiri ----- #}
+    <div class="vm-card flex-grow-1 d-flex flex-column" style="min-height: 0;">
+      <div class="vm-card-header">
+        <span class="vm-section-title d-inline-flex align-items-center gap-2">
+          <i class="ti ti-history vm-muted"></i> Aktivitas Terbaru
+        </span>
+      </div>
+      <div class="table-responsive" style="flex: 1 1 0; min-height: 0; overflow-y: auto;">
+        <table class="vm-table" style="margin-bottom: 0;">
+          <thead>
+            <tr>
+              <th>Waktu</th>
+              <th></th>
+              <th>Plat</th>
+              <th>Jenis</th>
+            </tr>
+          </thead>
+          <tbody id="vm-recent-body"
+                 hx-get="{{ url_for('dashboard.partial_recent') }}"
+                 hx-trigger="vm:refresh from:body, every 10s"
+                 hx-swap="innerHTML"
+                 data-vm-refresh-on="new_detection">
+            {% include 'partials/_detection_rows_dashboard.html' %}
+          </tbody>
+        </table>
+      </div>
+      <div class="vm-card-footer text-center">
+        <a href="{{ url_for('riwayat.index') }}" class="vm-btn vm-btn--link">
+          Lihat semua riwayat <i class="ti ti-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ---------------------------------------------------------------------
+  // Live camera feed dari detector — auto-retry kalau detector belum jalan.
+  //
+  // Browser tidak otomatis retry <img> yang gagal load. Tiap 5 detik kita
+  // toggle feedOk + ganti src dengan cache-buster: kalau detector mati,
+  // @error langsung fire lagi (feedOk=false); kalau hidup, frame muncul
+  // dan @load fire (feedOk=true). UX: max 5 detik delay setelah detector up.
+  // ---------------------------------------------------------------------
+  function cameraFeed(baseUrl) {
+    return {
+      baseUrl: baseUrl || '',
+      feedOk: !!baseUrl,
+      src: baseUrl || '',
+      _timer: null,
+      init() {
+        if (!this.baseUrl) return;
+        this._timer = setInterval(() => this.retry(), 5000);
+      },
+      retry() {
+        // Tidak perlu retry kalau lagi sukses streaming
+        if (this.feedOk) return;
+        this.src = this.baseUrl + (this.baseUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+        this.feedOk = true;  // optimistically show, akan error lagi kalau detector masih mati
+      },
+      onError() { this.feedOk = false; },
+      onLoad()  { this.feedOk = true;  },
+      toggleFullscreen() {
+        // ponytail: native Fullscreen API; Esc exits. iOS Safari unsupported,
+        // add CSS-fixed fallback if mobile viewers show up.
+        if (document.fullscreenElement) document.exitFullscreen();
+        else this.$root.requestFullscreen();
+      },
+    };
+  }
+
+  // ---------------------------------------------------------------------
+  // Time-series chart (Chart.js area dengan gradient halus)
+  // Re-fetch saat ada deteksi baru via window event.
+  // ---------------------------------------------------------------------
+  (function () {
+    const ctx = document.getElementById('trendChart').getContext('2d');
+
+    const evGradient = ctx.createLinearGradient(0, 0, 0, 220);
+    evGradient.addColorStop(0, 'rgba(5, 150, 105, 0.25)');
+    evGradient.addColorStop(1, 'rgba(5, 150, 105, 0.00)');
+
+    const bbmGradient = ctx.createLinearGradient(0, 0, 0, 220);
+    bbmGradient.addColorStop(0, 'rgba(217, 119, 6, 0.25)');
+    bbmGradient.addColorStop(1, 'rgba(217, 119, 6, 0.00)');
+
+    const trendChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'EV',
+            data: [],
+            borderColor: '#059669',
+            backgroundColor: evGradient,
+            borderWidth: 2,
+            tension: 0.35,
+            fill: true,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+          },
+          {
+            label: 'BBM',
+            data: [],
+            borderColor: '#d97706',
+            backgroundColor: bbmGradient,
+            borderWidth: 2,
+            tension: 0.35,
+            fill: true,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle',
+                      font: { size: 11 }, color: '#d6d3d1' },
+          },
+          tooltip: {
+            backgroundColor: '#1c1917',
+            padding: 10,
+            cornerRadius: 6,
+            titleFont: { size: 11, weight: '600' },
+            bodyFont: { size: 11 },
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: '#a8a29e', font: { size: 10 }, maxTicksLimit: 12, autoSkip: true },
+            border: { color: 'rgba(255,255,255,0.12)' },
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            ticks: { color: '#a8a29e', font: { size: 10 }, precision: 0 },
+            border: { display: false },
+          },
+        },
+      },
+    });
+
+    const inFrom = document.getElementById('vm-trend-from');
+    const inTo = document.getElementById('vm-trend-to');
+    const granEl = document.getElementById('vm-trend-gran');
+    const segBtns = document.querySelectorAll('.vm-seg-btn');
+    const base = "{{ url_for('dashboard.partial_timeseries') }}";
+
+    const pad = (n) => String(n).padStart(2, '0');
+    const toISO = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const isoToDisplay = (iso) => { const p = iso.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; };
+
+    // "dd/mm/yyyy" atau "yyyy-mm-dd" -> ISO; null kalau format salah.
+    function parseTyped(s) {
+      s = (s || '').trim();
+      let m;
+      if ((m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/)))
+        return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+      if ((m = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/)))
+        return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+      return null;
+    }
+
+    let curFrom, curTo;
+
+    async function refreshTrend() {
+      try {
+        const res = await fetch(`${base}?from=${curFrom}&to=${curTo}`);
+        const data = await res.json();
+        trendChart.data.labels = data.labels;
+        trendChart.data.datasets[0].data = data.ev;
+        trendChart.data.datasets[1].data = data.bbm;
+        trendChart.update('none');
+        granEl.textContent = ' · ' + (curFrom === curTo ? 'per jam' : 'per hari');
+      } catch (e) { console.warn('Trend fetch failed:', e); }
+    }
+
+    // Set rentang [from,to] (ISO) -> update tampilan tanggal + highlight preset + refresh.
+    function setRange(fromISO, toISO_, activeBtn) {
+      if (fromISO > toISO_) { const t = fromISO; fromISO = toISO_; toISO_ = t; }  // tukar kalau kebalik
+      curFrom = fromISO; curTo = toISO_;
+      inFrom.value = isoToDisplay(fromISO);
+      inTo.value = isoToDisplay(toISO_);
+      segBtns.forEach((x) => x.classList.toggle('is-active', x === activeBtn));
+      refreshTrend();
+    }
+
+    // Tombol preset: N hari terakhir s/d hari ini.
+    segBtns.forEach((b) => b.addEventListener('click', () => {
+      const days = parseInt(b.dataset.range, 10);
+      const to = new Date();
+      const from = new Date(); from.setDate(from.getDate() - (days - 1));
+      setRange(toISO(from), toISO(to), b);
+    }));
+
+    // Edit tanggal langsung di label (Enter atau saat kehilangan fokus).
+    function applyTyped() {
+      const f = parseTyped(inFrom.value), t = parseTyped(inTo.value);
+      if (!f || !t) {  // format salah -> kembalikan tampilan lama
+        inFrom.value = isoToDisplay(curFrom);
+        inTo.value = isoToDisplay(curTo);
+        return;
+      }
+      if (f === curFrom && t === curTo) return;  // tak berubah, jangan fetch ulang
+      setRange(f, t, null);  // null = custom, tak ada preset ter-highlight
+    }
+    [inFrom, inTo].forEach((el) => {
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } });
+      el.addEventListener('blur', applyTyped);
+    });
+
+    // Init: hari ini (preset 1 Hari aktif).
+    setRange(toISO(new Date()), toISO(new Date()), segBtns[0]);
+
+    // Auto-refresh saat ada deteksi baru hanya relevan kalau sedang lihat hari ini.
+    window.addEventListener('vm:new-detection', () => {
+      const today = toISO(new Date());
+      if (curFrom === today && curTo === today) refreshTrend();
+    });
+  })();
+
+  // ---------------------------------------------------------------------
+  // Stacked bar EV vs BBM — update via socket payload langsung
+  // (lebih responsif daripada nunggu HTMX refresh).
+  // ---------------------------------------------------------------------
+  (function () {
+    function applyStats(stats) {
+      const { total, total_ev, total_gas, total_unknown = 0 } = stats;
+      const evPct  = total ? (total_ev      * 100 / total) : 0;
+      const bbmPct = total ? (total_gas     * 100 / total) : 0;
+      const unkPct = total ? (total_unknown * 100 / total) : 0;
+
+      const bar = document.getElementById('vmStackBar');
+      bar.innerHTML = total > 0
+        ? `<div class="vm-stack-seg is-ev"      style="width:${evPct}%"  title="EV: ${total_ev}">${evPct      >= 12 ? Math.round(evPct)      + '%' : ''}</div>
+           <div class="vm-stack-seg is-bbm"     style="width:${bbmPct}%" title="BBM: ${total_gas}">${bbmPct   >= 12 ? Math.round(bbmPct)     + '%' : ''}</div>
+           <div class="vm-stack-seg is-unknown" style="width:${unkPct}%" title="Unknown: ${total_unknown}">${unkPct >= 12 ? Math.round(unkPct) + '%' : ''}</div>`
+        : '';
+
+      document.getElementById('vmLegendEv').textContent  = total_ev.toLocaleString('id-ID');
+      document.getElementById('vmLegendBbm').textContent = total_gas.toLocaleString('id-ID');
+      document.getElementById('vmLegendUnk').textContent = total_unknown.toLocaleString('id-ID');
+    }
+
+    window.addEventListener('vm:new-detection', (e) => {
+      if (e.detail && e.detail.stats) applyStats(e.detail.stats);
+    });
+  })();
+
+</script>
+{% endblock %}
