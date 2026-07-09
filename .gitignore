@@ -43,8 +43,8 @@ desktop.ini
 .vscode/
 .idea/
 
-# --- Setelan lokal Claude Code (khusus mesin ini) ---
-.claude/settings.local.json
+# --- Setelan & scaffolding Claude Code (khusus mesin ini) ---
+.claude/
 
 # --- Scaffolding Claude Code / skills (bukan bagian proyek) ---
 .agents/
@@ -55,6 +55,7 @@ skills-lock.json
 #  Permintaan pemilik proyek — folder lokal/laporan, tidak ikut repo
 # ================================================================
 postman/
+.postman/
 test_report/
 tabel_report/
 tools/
