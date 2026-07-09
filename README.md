@@ -24,7 +24,6 @@ cd vehicle-monitoring-server
 python -m venv venv
 venv\Scripts\pip install -r requirements.txt
 ```
-> `venv/` sengaja **tidak** ikut git (tidak portable). Selalu dibangun ulang dari `requirements.txt` — versinya sudah dipin, jadi hasilnya identik.
 
 ### 4. Siapkan database MySQL
 Buat database (dan user) sesuai `DATABASE_URL` di `.env`. Contoh via MySQL client:
