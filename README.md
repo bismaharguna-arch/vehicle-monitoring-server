@@ -15,7 +15,7 @@ Aplikasi web monitoring deteksi kendaraan — Flask + Flask-SocketIO + SQLAlchem
 
 ### 2. Clone repo
 ```powershell
-git clone https://github.com/USERNAME/vehicle-monitoring-server.git
+git clone https://github.com/bismaharguna-arch/vehicle-monitoring-server.git
 cd vehicle-monitoring-server
 ```
 
