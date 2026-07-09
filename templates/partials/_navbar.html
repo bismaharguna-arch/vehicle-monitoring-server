@@ -47,14 +47,10 @@
             <div class="vm-menu-header-role">{{ current_user.role }}</div>
           </div>
 
-          {# Akun tamu BERSAMA (tombol "Masuk sebagai Tamu") dilarang ubah
-             profil — route /api/profile PATCH juga menolak 403 (dua lapis). #}
-          {% if current_user.username != 'tamu' %}
           <button type="button" class="vm-menu-item"
                   @click="open = false; $dispatch('vm:open-profile')">
             <i class="ti ti-user-edit"></i> Edit Profil
           </button>
-          {% endif %}
 
           {% if current_user.role == 'admin' %}
           <a href="{{ url_for('user_mgt.index') }}"

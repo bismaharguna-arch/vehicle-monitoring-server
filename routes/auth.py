@@ -7,15 +7,23 @@ from models import User
 # Membuat Blueprint dengan nama 'auth'
 bp = Blueprint('auth', __name__)
 
-# Akun tamu BERSAMA yang dipakai tombol "Masuk sebagai Tamu" di halaman login.
-# Karena dipakai ramai-ramai, akun ini dilarang mengubah profilnya sendiri
-# (lihat guard di update_profile) — kalau tidak, satu pengunjung iseng bisa
-# mengganti password & mengunci tombol tamu untuk semua orang.
-GUEST_USERNAME = "tamu"
+
+@bp.after_request
+def _no_store_halaman_auth(response):
+    """Larang browser menyimpan cache halaman login & register (no-store).
+
+    Tanpa ini, tombol Back setelah login menampilkan halaman login BASI dari
+    cache browser — padahal session masih aktif — lalu klik "Daftar" terasa
+    "nyasar" ke dashboard (redirect is_authenticated). Dengan no-store, Back
+    memaksa browser minta ulang ke server sehingga langsung ke-redirect ke
+    dashboard dan halaman login palsu tak pernah terlihat."""
+    if request.endpoint in ("auth.login", "auth.register"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 def _do_login(user):
-    """Blok sukses login yang dipakai login manual, tombol tamu, dan registrasi.
+    """Blok sukses login yang dipakai login manual dan registrasi.
 
     session.permanent=True mengaktifkan absolute timeout PERMANENT_SESSION_LIFETIME
     (8 jam, di app.py) — user otomatis login ulang setelahnya, apa pun role-nya.
@@ -49,28 +57,6 @@ def login():
         return render_template("login.html", error="Username atau password salah")
 
     return render_template("login.html")
-
-
-@bp.route("/login/guest", methods=["POST"])
-def login_guest():
-    """Tombol "Masuk sebagai Tamu": auto-login ke akun bersama read-only tanpa
-    kredensial. POST saja (bukan GET) supaya tidak terpicu drive-by via link
-    atau prefetch browser."""
-    if current_user.is_authenticated:
-        return redirect(url_for("dashboard.index"))
-
-    user = db.session.execute(
-        db.select(User).filter_by(username=GUEST_USERNAME)
-    ).scalar_one_or_none()
-    if user is None:
-        # Admin pernah menghapus/rename akun tamu -> buat ulang, identik seeding
-        # di app.py (password tamu123 juga dipakai tools/test_auth_role.py).
-        user = User(username=GUEST_USERNAME,
-                    password_hash=generate_password_hash("tamu123"),
-                    role="guest")
-        db.session.add(user)
-        db.session.commit()
-    return _do_login(user)
 
 
 @bp.route("/register", methods=["GET", "POST"])
@@ -136,13 +122,6 @@ def get_profile():
 @bp.route("/api/profile", methods=["PATCH"])
 @login_required
 def update_profile():
-    # Akun tamu BERSAMA tidak boleh mengubah profil (dipakai banyak orang via
-    # tombol "Masuk sebagai Tamu"). Akun guest pribadi hasil registrasi tetap
-    # boleh — guard ini khusus username GUEST_USERNAME.
-    if current_user.username == GUEST_USERNAME:
-        return jsonify({"status": "ERROR",
-                        "message": "Akun tamu bersama tidak bisa mengubah profil."}), 403
-
     data = request.get_json(silent=True) or {}
 
     user = db.session.get(User, current_user.id)

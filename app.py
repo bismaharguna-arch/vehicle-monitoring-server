@@ -126,11 +126,6 @@ def create_app():
                 db.session.add(User(username="admin", password_hash=generate_password_hash("admin123"), role="admin"))
                 print(">>> Akun 'admin' dibuat (Pass: admin123)")
 
-            # Cek dan Buat User: GUEST (Cuma Lihat)
-            if not db.session.execute(db.select(User).filter_by(username="tamu")).scalar_one_or_none():
-                db.session.add(User(username="tamu", password_hash=generate_password_hash("tamu123"), role="guest"))
-                print(">>> Akun 'tamu' dibuat (Pass: tamu123)")
-
             db.session.commit()
         except (OperationalError, InterfaceError, DBAPIError) as e:
             log.warning(">>> DB tidak tersedia saat boot — skip create_all & seeding: %s", e)

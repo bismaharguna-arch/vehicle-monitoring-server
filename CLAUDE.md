@@ -24,7 +24,7 @@ Windows-first project. Shell helpers are `.bat` files. Python venv at `venv/`. C
 | `venv\Scripts\python tools\migrate_add_corrected_by.py [--apply]` | Add `user_id` FK (correction audit trail) to old `detection` tables. Default dry-run, idempotent |
 | `venv\Scripts\python tools\migrate_add_vehicle_masters.py [--apply] [--drop-plate]` | **#4 migration**: rename `detection`→`deteksi` + Indonesian columns, create `mobil`/`motor` masters, backfill from plates, link FKs. Needs MySQL 8+. Dry-run default, idempotent |
 
-Default seeded credentials: `admin/admin123`, `tamu/tamu123` (created automatically on boot in `app.py`).
+Default seeded credentials: `admin/admin123` (created automatically on boot in `app.py`). Guest (read-only) accounts are created via public self-registration (`/register`).
 
 **There is no linter, no build step, and no `pytest` suite.** Testing is done with standalone HTTP/Socket.IO integration scripts in `tools/` run by hand against a live server (see [Testing](#testing)).
 
@@ -36,7 +36,7 @@ Default seeded credentials: `admin/admin123`, `tamu/tamu123` (created automatica
 |---|---|---|
 | `dashboard` | `/`, `/dashboard` | Main monitoring view (KPIs, trend chart, live feed, recent activity) |
 | `riwayat` | `/riwayat` | History page: filterable + **paginated** detections table (25/page) |
-| `auth` | `/login`, `/login/guest`, `/register`, `/logout`, `/api/profile` | Login, guest quick-login, public self-registration (role forced `guest`), self-service profile edit (own username/password, never role) |
+| `auth` | `/login`, `/register`, `/logout`, `/api/profile` | Login, public self-registration (role forced `guest`), self-service profile edit (own username/password, never role) |
 | `user_mgt` | `/users`, `/api/users*` | Admin-only account CRUD |
 | `api` | `/api/detections*`, `/api/stats`, `/video_feed` | **Public IoT contract** (POST) + role-gated edit/delete |
 
@@ -108,7 +108,7 @@ On `POST`/`PATCH`, a plated detection find-or-creates its master (`Mobil`/`Motor
 
 Two roles in `models.User.role`: `admin` (full access — PATCH corrections, DELETE, user management) and `guest` (read-only). Gating is enforced at **both** the template level (`current_user.role`) and the route level (`if current_user.role != 'admin': return 403`). Both layers must agree when adding new actions.
 
-**Public entry points (no account needed):** the login page has a "Masuk sebagai Tamu" button (`POST /login/guest` — auto-login to the **shared** seeded `tamu` account, recreated automatically if an admin deleted/renamed it) and a self-registration page (`GET/POST /register` — creates an account with role **forced to `guest` server-side**; username 3–60 chars unique, password ≥ 4 chars, auto-login on success). The shared `tamu` account (constant `GUEST_USERNAME` in `routes/auth.py`) is **blocked from editing its own profile** — `/api/profile` PATCH returns 403 and the Edit Profil menu/modal are not rendered for it — so a random visitor can't change its password and break the guest button. Personal guest accounts (registered or admin-created) can still edit their own profile.
+**Public entry point (no account needed):** a self-registration page (`GET/POST /register` — creates an account with role **forced to `guest` server-side**; username 3–60 chars unique, password ≥ 4 chars, auto-login on success). Registered (or admin-created) guest accounts can edit their own profile via `/api/profile`.
 
 ### Correction audit trail
 

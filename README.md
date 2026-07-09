@@ -56,7 +56,8 @@ Server jalan di `http://0.0.0.0:5000` (buka `http://localhost:5000`).
 | Username | Password | Peran |
 |---|---|---|
 | `admin` | `admin123` | admin (akses penuh) |
-| `tamu`  | `tamu123`  | guest (read-only) |
+
+> Akun guest read-only dibuat lewat halaman **Daftar** (registrasi mandiri) — role otomatis dipaksa `guest`.
 
 ---
 

@@ -107,33 +107,6 @@
     }
     .vm-pw-toggle:hover { color: var(--vm-text-primary); }
 
-    /* Divider "atau" + akses tanpa akun (tombol tamu & link daftar) */
-    .vm-login-divider {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin: 1.1rem 0;
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--vm-text-muted);
-    }
-    .vm-login-divider::before,
-    .vm-login-divider::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: var(--vm-border);
-    }
-
-    .vm-login-guest-hint {
-      display: block;
-      font-size: 0.7rem;
-      font-weight: 400;
-      color: var(--vm-text-muted);
-      margin-top: 0.1rem;
-    }
-
     .vm-login-register {
       text-align: center;
       margin-top: 1.25rem;
@@ -196,19 +169,6 @@
 
         <button type="submit" class="vm-btn vm-btn--primary w-100" style="padding: 0.65rem;">
           <i class="ti ti-login-2"></i> Masuk
-        </button>
-      </form>
-
-      <div class="vm-login-divider">atau</div>
-
-      {# Akses tanpa akun: auto-login ke akun tamu bersama (read-only).
-         Sengaja POST (bukan link GET) supaya tidak terpicu prefetch browser. #}
-      <form method="POST" action="{{ url_for('auth.login_guest') }}">
-        <button type="submit" class="vm-btn vm-btn--ghost w-100" style="padding: 0.55rem;">
-          <span>
-            <i class="ti ti-user-question"></i> Masuk sebagai Tamu
-            <span class="vm-login-guest-hint">hanya-lihat, tanpa akun</span>
-          </span>
         </button>
       </form>
 

@@ -45,9 +45,7 @@
       {% block content %}{% endblock %}
     </main>
 
-    {# Modal profil tidak dirender untuk akun tamu bersama (profilnya terkunci,
-       lihat guard di routes/auth.py update_profile). #}
-    {% if current_user.is_authenticated and current_user.username != 'tamu' %}
+    {% if current_user.is_authenticated %}
     {% include 'partials/_profile_modal.html' %}
     {% endif %}
   </div>
