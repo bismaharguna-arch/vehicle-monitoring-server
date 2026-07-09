@@ -108,7 +108,7 @@ On `POST`/`PATCH`, a plated detection find-or-creates its master (`Mobil`/`Motor
 
 Two roles in `models.User.role`: `admin` (full access — PATCH corrections, DELETE, user management) and `guest` (read-only). Gating is enforced at **both** the template level (`current_user.role`) and the route level (`if current_user.role != 'admin': return 403`). Both layers must agree when adding new actions.
 
-**Public entry point (no account needed):** a self-registration page (`GET/POST /register` — creates an account with role **forced to `guest` server-side**; username 3–60 chars unique, password ≥ 4 chars, auto-login on success). Registered (or admin-created) guest accounts can edit their own profile via `/api/profile`.
+**Public entry point (no account needed):** a self-registration page (`GET/POST /register` — creates an account with role **forced to `guest` server-side**; username 3–60 chars unique, password ≥ 4 chars, auto-login on success). Registered (or admin-created) guest accounts can edit their own profile via `/api/profile`. The old "Masuk sebagai Tamu" button + shared `tamu` account were **fully removed** — self-registration is the only read-only path. `/login` & `/register` are served with `Cache-Control: no-store` (blueprint `after_request` in `routes/auth.py`) so the Back button after login can't show a stale cached auth page.
 
 ### Correction audit trail
 
