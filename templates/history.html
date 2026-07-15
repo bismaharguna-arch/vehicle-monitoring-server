@@ -29,7 +29,7 @@
             hx-get="{{ url_for('riwayat.partial_list') }}"
             hx-trigger="change, keyup changed delay:400ms from:input[type=text], vm:refresh from:body, every 10s"
             hx-target="#vm-history-result"
-            hx-swap="innerHTML"
+            hx-swap="morph:innerHTML"
             data-vm-refresh-on="new_detection"
             @submit.prevent>
 

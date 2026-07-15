@@ -46,8 +46,11 @@
         <div class="vm-camera-empty" x-show="!feedOk || !baseUrl">
           <i class="ti ti-video-off"></i>
           <div class="vm-camera-title" x-text="baseUrl ? 'Menunggu sinyal kamera' : 'Live preview disabled'"></div>
-          <div class="vm-camera-sub"
-               x-text="baseUrl ? 'Auto-retry tiap 5 detik...' : 'Set DETECTOR_PREVIEW_URL di .env untuk aktifkan.'"></div>
+          {# Baris bawah hanya untuk kasus preview belum dikonfigurasi. Saat URL
+             sudah ada tapi detector mati, ikon yang berdenyut sudah cukup. #}
+          <div class="vm-camera-sub" x-show="!baseUrl">
+            Set DETECTOR_PREVIEW_URL di .env untuk aktifkan.
+          </div>
         </div>
 
         <div class="vm-camera-meta">Last seen: —</div>
@@ -63,7 +66,7 @@
     {# every 10s = fallback polling kalau Socket.IO event tidak masuk. #}
     <div hx-get="{{ url_for('dashboard.partial_stats') }}"
          hx-trigger="vm:refresh from:body, every 10s"
-         hx-swap="innerHTML">
+         hx-swap="morph:innerHTML">
       {% include 'partials/_stats_cards.html' %}
     </div>
 
@@ -168,7 +171,7 @@
           <tbody id="vm-recent-body"
                  hx-get="{{ url_for('dashboard.partial_recent') }}"
                  hx-trigger="vm:refresh from:body, every 10s"
-                 hx-swap="innerHTML"
+                 hx-swap="morph:innerHTML"
                  data-vm-refresh-on="new_detection">
             {% include 'partials/_detection_rows_dashboard.html' %}
           </tbody>
@@ -191,15 +194,17 @@
   // ---------------------------------------------------------------------
   // Live camera feed dari detector — auto-retry kalau detector belum jalan.
   //
-  // Browser tidak otomatis retry <img> yang gagal load. Tiap 5 detik kita
-  // toggle feedOk + ganti src dengan cache-buster: kalau detector mati,
-  // @error langsung fire lagi (feedOk=false); kalau hidup, frame muncul
-  // dan @load fire (feedOk=true). UX: max 5 detik delay setelah detector up.
+  // Browser tidak otomatis retry <img> yang gagal load, jadi tiap 5 detik kita
+  // ganti src dengan cache-buster. feedOk HANYA dinaikkan oleh @load, tidak
+  // pernah ditebak di muka: <img> tetap ada di DOM (disembunyikan x-show, dan
+  // img display:none tetap men-download src-nya), sehingga saat detector mati
+  // placeholder diam saja alih-alih kedip tiap retry.
+  // UX: max 5 detik delay setelah detector up.
   // ---------------------------------------------------------------------
   function cameraFeed(baseUrl) {
     return {
       baseUrl: baseUrl || '',
-      feedOk: !!baseUrl,
+      feedOk: false,
       src: baseUrl || '',
       _timer: null,
       init() {
@@ -210,7 +215,6 @@
         // Tidak perlu retry kalau lagi sukses streaming
         if (this.feedOk) return;
         this.src = this.baseUrl + (this.baseUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
-        this.feedOk = true;  // optimistically show, akan error lagi kalau detector masih mati
       },
       onError() { this.feedOk = false; },
       onLoad()  { this.feedOk = true;  },

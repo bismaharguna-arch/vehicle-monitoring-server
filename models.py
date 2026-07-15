@@ -38,7 +38,9 @@ class Deteksi(db.Model):
     __tablename__ = 'deteksi'
     id = db.Column(db.Integer, primary_key=True)
     # Waktu server menerima data (de-facto received_at). Nama tetap Inggris.
-    timestamp = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    # index=True: dipakai ORDER BY (riwayat/live feed) & filter tanggal.
+    timestamp = db.Column(db.DateTime, default=datetime.now, nullable=False,
+                          index=True)
     # Waktu deteksi di sisi detektor (kontrak v1). NULL = legacy / detektor lama.
     # Disimpan naive local supaya comparable dengan kolom timestamp.
     waktu_deteksi = db.Column(db.DateTime, nullable=True)
@@ -54,8 +56,12 @@ class Deteksi(db.Model):
 
     # --- Kolom fallback (dipakai saat deteksi TANPA plat / tipe unknown) ---
     # Untuk baris yang ber-link ke master, tipe & bahan bakar diambil dari master.
-    tipe_kendaraan = db.Column(db.String(16), nullable=False, default="unknown")
-    bahan_bakar = db.Column(db.String(16), nullable=False, default="unknown")
+    # index=True: kedua kolom ini difilter terus oleh query KPI/statistik
+    # (COUNT per tipe & bahan bakar) — tanpa index, COUNT = full table scan.
+    tipe_kendaraan = db.Column(db.String(16), nullable=False, default="unknown",
+                               index=True)
+    bahan_bakar = db.Column(db.String(16), nullable=False, default="unknown",
+                            index=True)
 
     # --- Relasi ke master (tepat satu terisi; dua-duanya NULL = tanpa plat) ---
     id_mobil = db.Column(db.Integer, db.ForeignKey('mobil.id'), nullable=True)

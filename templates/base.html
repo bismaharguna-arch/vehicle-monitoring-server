@@ -23,7 +23,9 @@
 
   {% block head_extra %}{% endblock %}
 </head>
-<body>
+{# hx-ext="morph" -> aktifkan swap morphing idiomorph untuk seluruh halaman.
+   Yang benar-benar memakainya = elemen ber-hx-swap="morph:innerHTML". #}
+<body hx-ext="morph">
 
   <div x-data="vmGlobal()" @vm:open-profile.window="openProfile()">
     {% include 'partials/_navbar.html' %}
@@ -52,6 +54,18 @@
 
   {# ---------- HTMX ---------- #}
   <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"></script>
+
+  {# ---------- idiomorph: swap "morph" (WAJIB dimuat setelah htmx) ----------
+     Default HTMX (hx-swap="innerHTML") membuang seluruh isi target lalu
+     membangunnya ulang — 30 baris + 13 <img> dibuat ulang tiap polling 10 detik,
+     walaupun datanya sama persis. Elemen <img> yang baru lahir selalu kosong
+     dulu, jadi tabel terlihat "reload" tiap 10 detik.
+
+     Morph membandingkan HTML baru dengan DOM yang ada dan HANYA menyentuh yang
+     berbeda: baris lama (beserta fotonya) tidak diutak-atik sama sekali, baris
+     baru menyelip masuk. Dipakai lewat hx-swap="morph:innerHTML" (lihat
+     dashboard.html & history.html); hx-ext="morph" di <body> mengaktifkannya. #}
+  <script src="https://unpkg.com/idiomorph@0.3.0/dist/idiomorph-ext.min.js"></script>
 
   {# ---------- Alpine.js (defer wajib) ---------- #}
   <script defer src="https://unpkg.com/alpinejs@3.13.10/dist/cdn.min.js"></script>

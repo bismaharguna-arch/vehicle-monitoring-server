@@ -505,6 +505,14 @@ html, body {
   opacity: 0.5;
   display: block;
   margin-bottom: 0.75rem;
+  /* Berdenyut redup selama tidak ada sinyal kamera -> penanda bahwa sistem
+     masih menunggu, bukan macet. Ikon ini hanya tampil saat feed mati. */
+  animation: vmCameraFade 2.4s var(--vm-ease) infinite;
+}
+
+@keyframes vmCameraFade {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.12; }
 }
 
 .vm-camera-empty .vm-camera-title {

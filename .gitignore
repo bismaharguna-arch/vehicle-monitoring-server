@@ -61,3 +61,13 @@ tabel_report/
 tools/
 catatan/
 backup/
+
+# Log hasil tools/start-log.bat (diagnosis "server mati sendiri")
+logs/
+
+# Artefak sesi Playwright MCP (log console/snapshot, khusus mesin ini)
+.playwright-mcp/
+
+# Fixture uji upload manual (ada file 20 MB) + dokumen laporan pribadi
+test_files/
+*.docx

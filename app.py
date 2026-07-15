@@ -1,3 +1,11 @@
+# Eventlet monkey-patch HARUS di baris paling atas, sebelum import lain.
+# Tanpa ini socket PyMySQL bersifat blocking dan MENYUMBAT seluruh event
+# loop eventlet -> request diproses nyaris satu-satu saat ramai (latency
+# membengkak). Dengan patch, I/O DB jadi kooperatif (green) dan request
+# bisa benar-benar berjalan paralel.
+import eventlet
+eventlet.monkey_patch()
+
 import os
 import logging
 from datetime import timedelta
@@ -102,10 +110,17 @@ def create_app():
         return render_template("db_offline.html"), 503
     
     # Route Khusus untuk Membuka File Foto (Uploads)
+    #
+    # max_age = 1 tahun: nama file foto sudah unik (timestamp + mikrodetik) dan
+    # tidak pernah dipakai ulang, jadi isinya tidak mungkin berubah -> aman
+    # di-cache selamanya. Tanpa ini browser merevalidasi (304) tiap kali <img>
+    # dibuat ulang; padahal tabel "Aktivitas Terbaru" di-swap HTMX tiap 10 detik,
+    # sehingga tiap foto kosong sejenak menunggu jaringan -> tabelnya kelihatan
+    # berkedip. Dengan cache, <img> baru langsung tampil tanpa jeda.
     @app.route("/uploads/detections/<path:filename>")
     def uploaded_file(filename):
         path = os.path.join(os.getcwd(), "uploads", "detections")
-        return send_from_directory(path, filename)
+        return send_from_directory(path, filename, max_age=31536000)
 
     # 3. DAFTARKAN BLUEPRINTS (Pasang fitur-fiturnya)
     app.register_blueprint(dashboard.bp)
@@ -140,5 +155,12 @@ def create_app():
 # Jalankan Aplikasi
 if __name__ == "__main__":
     app = create_app()
+    # Debug default MATI: mode debug menambah overhead per-request dan
+    # (bahaya) mengekspos Werkzeug debugger ke LAN. Set FLASK_DEBUG=1 di
+    # .env kalau butuh auto-reload saat develop.
+    debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
+    # Log akses per-request dimatikan (log_output=False) — pada uji beban,
+    # menulis puluhan ribu baris log ke console ikut memperlambat server.
     # Host 0.0.0.0 agar bisa diakses Laptop A lewat Wi-Fi
-    socketio.run(app, debug=True, host="0.0.0.0", port=5000)
+    socketio.run(app, debug=debug_mode, host="0.0.0.0", port=5000,
+                 log_output=debug_mode)

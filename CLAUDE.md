@@ -10,6 +10,8 @@ Flask 3.1 + Flask-SocketIO + Flask-Login, SQLAlchemy 2.0 (MySQL via PyMySQL/Lara
 
 Windows-first project. Shell helpers are `.bat` files. Python venv at `venv/`. Config comes from `.env` (`SECRET_KEY`, `DATABASE_URL`, `DETECTOR_PREVIEW_URL`). App factory pattern: `create_app()` in `app.py`, run via `socketio.run(...)` on `0.0.0.0:5000`.
 
+**Concurrency:** `app.py` line 1 calls `eventlet.monkey_patch()` — MUST stay the very first import (before everything), or PyMySQL sockets stay blocking and requests serialize under load (latency balloons at >1 concurrent user). Debug is OFF by default (`FLASK_DEBUG=1` in `.env` re-enables auto-reload + per-request logs); don't hardcode `debug=True` back into `socketio.run`. `deteksi` has indexes on `timestamp`, `tipe_kendaraan`, `bahan_bakar` (`index=True` in models; `tools/migrate_add_indexes.py` for pre-existing DBs).
+
 ## Common Commands
 
 | Command | Purpose |
@@ -23,6 +25,7 @@ Windows-first project. Shell helpers are `.bat` files. Python venv at `venv/`. C
 | `venv\Scripts\python tools\migrate_add_detected_at.py [--apply]` | Add `detected_at` column to old `detection` tables. Idempotent |
 | `venv\Scripts\python tools\migrate_add_corrected_by.py [--apply]` | Add `user_id` FK (correction audit trail) to old `detection` tables. Default dry-run, idempotent |
 | `venv\Scripts\python tools\migrate_add_vehicle_masters.py [--apply] [--drop-plate]` | **#4 migration**: rename `detection`→`deteksi` + Indonesian columns, create `mobil`/`motor` masters, backfill from plates, link FKs. Needs MySQL 8+. Dry-run default, idempotent |
+| `venv\Scripts\python tools\migrate_add_indexes.py [--apply]` | Add indexes (`timestamp`, `tipe_kendaraan`, `bahan_bakar`) to pre-existing `deteksi` tables. Dry-run default, idempotent |
 
 Default seeded credentials: `admin/admin123` (created automatically on boot in `app.py`). Guest (read-only) accounts are created via public self-registration (`/register`).
 
@@ -154,3 +157,13 @@ No `pytest`. Tests are standalone HTTP/Socket.IO scripts in `tools/`, run by han
 Finished reports live in `test_report/`. `tools/bikin_grafik.py` (needs `matplotlib`) renders presentation PNGs from them.
 
 Tools that import the app (`tools/test_insert.py`, `tools/dummy.py`) include a `sys.path.insert(0, ...)` bootstrap; their `.bat` launchers `cd` to project root so `load_dotenv()` finds `.env`.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
