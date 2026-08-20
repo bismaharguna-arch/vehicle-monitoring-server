@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 import socket
 import hmac
@@ -9,7 +10,7 @@ from flask_login import login_required
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
 from sqlalchemy import or_
-from sqlalchemy.exc import OperationalError, InterfaceError, DBAPIError
+from sqlalchemy.exc import OperationalError, InterfaceError, DBAPIError, IntegrityError
 from extensions import db, socketio
 from models import Deteksi, Mobil, Motor
 from flask_login import login_required, current_user
@@ -35,8 +36,15 @@ CLOCK_SKEW_TOLERANCE = timedelta(hours=1)
 
 # Batas panjang plat (samakan dengan kolom plat_nomor VARCHAR(32) di master).
 MAX_PLATE_LEN = 32
+# Pola plat Indonesia: kode wilayah (1-2 huruf) + nomor (1-4 angka) +
+# huruf belakang (1-3 huruf). Dicocokkan SETELAH semua pemisah dibuang,
+# jadi "b1234xyz", "B-1234-XYZ", dan "B 1234 XYZ" sama-sama cocok.
+PLATE_RE = re.compile(r"^([A-Z]{1,2})([0-9]{1,4})([A-Z]{1,3})$")
 # Ekstensi foto yang diterima (detektor kirim JPG). Selain ini ditolak 415.
 ALLOWED_PHOTO_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+# Panjang maksimum nama berkas foto yang disimpan, sudah termasuk awalan waktu
+# (22 karakter). Ekstensi SELALU dipertahankan saat dipotong.
+MAX_PHOTO_NAME = 50
 
 # ===== Auto-registrasi detector (Opsi A) =====
 # Detector kirim heartbeat berkala -> web simpan URL preview terkini di memori.
@@ -136,6 +144,29 @@ def _normalize_vtype(raw):
     return "unknown"
 
 
+def _normalize_plate(raw):
+    """Rapikan & validasi plat Indonesia ke bentuk baku "XX 1234 ABC".
+
+    Return (plat, ok):
+      - (None, True)  -> memang tanpa plat (None/kosong/spasi). Sah.
+      - (plat, True)  -> cocok pola, sudah dibakukan.
+      - (None, False) -> ada isinya, tapi bukan plat yang dikenali.
+
+    Idempoten: plat yang sudah baku diproses ulang hasilnya sama, jadi aman
+    walau detector sudah menormalkan duluan di sisi sana.
+    """
+    s = str(raw or "").strip()
+    if not s:
+        return None, True
+    # HANYA pemisah lazim (spasi, strip, titik, garis bawah) yang dibuang,
+    # supaya variasi penulisan yang sama jatuh ke satu bentuk. Karakter lain
+    # sengaja DIBIARKAN agar gagal cocok pola dan ditolak — kalau semua
+    # non-alfanumerik ikut dibuang, plat seperti "B 3924 EB#" akan lolos
+    # dengan '#' hilang diam-diam.
+    m = PLATE_RE.match(re.sub(r"[\s._-]+", "", s.upper()))
+    return (" ".join(m.groups()), True) if m else (None, False)
+
+
 def _parse_detected_at(raw):
     """Parse ISO 8601 string -> naive local datetime.
 
@@ -157,6 +188,42 @@ def _parse_detected_at(raw):
     return dt
 
 
+def _upsert_master(model, plate, fuel):
+    """Find-or-create satu baris master (Mobil/Motor) untuk `plate`.
+
+    Tahan balapan: kalau dua permintaan bersamaan sama-sama melihat plat
+    belum ada, keduanya mencoba INSERT dan salah satunya kalah di kunci unik
+    `plat_nomor`. Penyisipan dibungkus SAVEPOINT supaya kegagalan itu hanya
+    membatalkan bagian ini, BUKAN seluruh transaksi — yang kalah tinggal
+    memakai baris yang sudah dibuat pemenang, jadi deteksinya tetap tersimpan.
+
+    Tanpa ini, IntegrityError lolos ke errorhandler DBAPIError di app.py dan
+    dibalas 503 "DB_UNAVAILABLE" — menyesatkan, karena DB sebenarnya sehat.
+    """
+    row = db.session.execute(
+        db.select(model).filter_by(plat_nomor=plate)
+    ).scalar_one_or_none()
+
+    if row is None:
+        try:
+            with db.session.begin_nested():  # SAVEPOINT
+                row = model(plat_nomor=plate, bahan_bakar=fuel)
+                db.session.add(row)
+        except IntegrityError:
+            # Permintaan lain menang duluan. Baca ulang dengan locking read:
+            # di MySQL REPEATABLE READ, SELECT biasa masih memakai snapshot
+            # lama sehingga baris baru itu tidak terlihat.
+            row = db.session.execute(
+                db.select(model).filter_by(plat_nomor=plate).with_for_update()
+            ).scalar_one()
+            if fuel != "unknown":
+                row.bahan_bakar = fuel
+    elif fuel != "unknown":
+        row.bahan_bakar = fuel
+
+    return row.id
+
+
 def _link_master(plate, vtype, fuel):
     """Find-or-create master kendaraan untuk deteksi BERPLAT.
 
@@ -171,28 +238,10 @@ def _link_master(plate, vtype, fuel):
         return None, None
 
     if vtype == "mobil":
-        m = db.session.execute(
-            db.select(Mobil).filter_by(plat_nomor=plate)
-        ).scalar_one_or_none()
-        if m is None:
-            m = Mobil(plat_nomor=plate, bahan_bakar=fuel)
-            db.session.add(m)
-            db.session.flush()  # supaya m.id terisi
-        elif fuel != "unknown":
-            m.bahan_bakar = fuel
-        return m.id, None
+        return _upsert_master(Mobil, plate, fuel), None
 
     if vtype == "motor":
-        m = db.session.execute(
-            db.select(Motor).filter_by(plat_nomor=plate)
-        ).scalar_one_or_none()
-        if m is None:
-            m = Motor(plat_nomor=plate, bahan_bakar=fuel)
-            db.session.add(m)
-            db.session.flush()
-        elif fuel != "unknown":
-            m.bahan_bakar = fuel
-        return None, m.id
+        return None, _upsert_master(Motor, plate, fuel)
 
     # tipe unknown walau berplat -> tidak dilink (pakai kolom fallback deteksi)
     return None, None
@@ -273,9 +322,14 @@ def api_create_detection():
             return jsonify({"status": "ERROR",
                             "message": "confidence_score harus angka 0.0-1.0"}), 400
         conf = max(0.0, min(1.0, conf))  # clamp ke rentang wajar
-        if plate and len(str(plate).strip()) > MAX_PLATE_LEN:
-            return jsonify({"status": "ERROR",
-                            "message": f"plate_number maksimal {MAX_PLATE_LEN} karakter"}), 400
+        # Plat: dibakukan. Kalau tidak dikenali, plat DIBUANG tapi deteksinya
+        # tetap disimpan — OCR wajar salah baca, dan membuang barisnya bikin
+        # jumlah deteksi lebih kecil dari kenyataan.
+        plate_raw = plate
+        plate, plate_ok = _normalize_plate(plate)
+        if not plate_ok:
+            log.info("Plat ditolak (format tak dikenali), deteksi tetap "
+                     "disimpan tanpa plat: %r", plate_raw)
 
         # --- Simpan foto (opsional) ---
         if file and file.filename:
@@ -285,7 +339,12 @@ def api_create_detection():
                                 "message": "Foto harus jpg/jpeg/png/gif/webp"}), 415
             ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             # Potong nama biar muat kolom (255) & tidak lewat batas path Windows.
-            photo_filename = f"{ts}_{secure_filename(file.filename)}"[:150]
+            # Yang dipotong HANYA nama dasarnya — ekstensi dipertahankan, karena
+            # send_from_directory menebak tipe berkas dari ekstensi saat foto
+            # ditampilkan; tanpa itu <img> di riwayat bisa gagal render.
+            dasar, ekst = os.path.splitext(secure_filename(file.filename))
+            sisa = max(MAX_PHOTO_NAME - len(ts) - len(ekst) - 1, 1)
+            photo_filename = f"{ts}_{dasar[:sisa]}{ekst}"
             file.save(os.path.join(UPLOAD_DIR, photo_filename))
 
         # Coerce ke enum kanonik (terima legacy English dari detector lama)
@@ -418,7 +477,7 @@ def api_list_detections():
     if p_fuel and p_fuel != "all":
         query = query.filter_by(bahan_bakar=p_fuel)
 
-    items = query.order_by(Deteksi.timestamp.desc()).limit(100).all()
+    items = query.order_by(Deteksi.timestamp.desc(), Deteksi.id.desc()).limit(100).all()
 
     out = []
     for d in items:
@@ -476,9 +535,15 @@ def api_edit_detection(det_id):
     new_type = _normalize_vtype(data["vehicle_type"]) if "vehicle_type" in data else d.tipe_kendaraan
     new_fuel = _normalize_fuel(data["is_electric"]) if "is_electric" in data else d.bahan_bakar
 
+    # Admin mengetik manual: format salah DITOLAK dengan pesan, bukan
+    # dikosongkan diam-diam seperti jalur detector — biar bisa dibetulkan.
     if new_plate and len(str(new_plate).strip()) > MAX_PLATE_LEN:
         return jsonify({"status": "ERROR",
                         "message": f"plate_number maksimal {MAX_PLATE_LEN} karakter"}), 400
+    new_plate, plate_ok = _normalize_plate(new_plate)
+    if not plate_ok:
+        return jsonify({"status": "ERROR",
+                        "message": "Format plat harus seperti B 1234 XYZ"}), 400
 
     # Update kolom fallback (sumber stats & tampilan untuk baris tanpa plat).
     d.tipe_kendaraan = new_type
@@ -513,13 +578,20 @@ def api_detector_update_plate(det_id):
     fuel_raw = data.get("is_electric")
 
     # Minimal satu field bermakna (plat kosong/whitespace dianggap absen).
-    plate = str(plate_raw).strip() if plate_raw is not None else ""
-    if not plate and not fuel_raw:
+    dikirim_plat = plate_raw is not None and str(plate_raw).strip() != ""
+    if not dikirim_plat and not fuel_raw:
         return jsonify({"status": "ERROR",
                         "message": "kirim plate_number dan/atau is_electric"}), 400
-    if plate and len(plate) > MAX_PLATE_LEN:
-        return jsonify({"status": "ERROR",
-                        "message": f"plate_number maksimal {MAX_PLATE_LEN} karakter"}), 400
+
+    # Plat ngaco dari OCR susulan: diabaikan, jangan sampai mencemari master.
+    plate, plate_ok = _normalize_plate(plate_raw)
+    if not plate_ok:
+        log.info("PATCH /plate: plat ditolak (format tak dikenali): %r", plate_raw)
+        plate = None
+        # Tidak ada lagi yang bisa diterapkan. 200 supaya detector tidak retry.
+        if not fuel_raw:
+            return jsonify({"status": "SKIPPED", "reason": "invalid plate"}), 200
+    plate = plate or ""
 
     d = db.session.get(Deteksi, det_id)
     if not d:

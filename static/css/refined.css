@@ -123,6 +123,12 @@
 /* Segmen stacked bar jadi cerah di dark — pakai teks gelap biar tetap kebaca */
 [data-bs-theme="dark"] .vm-stack-seg { color: #0c0a09; }
 
+/* Sembunyikan elemen Alpine yang belum ter-init supaya modal/dropdown tidak
+   berkedip muncul sesaat sebelum Alpine jalan. Global: dipakai navbar, modal
+   profil, dan lightbox di base.html — jadi tiap halaman tak perlu deklarasi
+   sendiri. */
+[x-cloak] { display: none !important; }
+
 /* =============================== Base =================================== */
 
 html, body {
@@ -480,6 +486,157 @@ html, body {
   margin-top: 0.5rem;
 }
 
+/* ---- Rincian di bawah angka KPI (mobil/motor/unknown, EV/BBM) ---- */
+
+/* Subjudul kecil di bawah angka besar. */
+.vm-kpi-sub {
+  font-size: 0.82rem;
+  color: var(--vm-text-muted);
+  margin-top: 0.2rem;
+}
+
+/* SATU kotak highlight yang membungkus list rincian tipe. */
+/* Angka besar di kiri, kotak rincian di kanan ATAS — memanfaatkan ruang
+   kosong di samping angka alih-alih menumpuk ke bawah. */
+.vm-kpi-body {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.vm-kpi-body > .vm-kpi-breakdown {
+  margin-top: 0;
+  flex: none;
+}
+
+.vm-kpi-breakdown {
+  margin-top: 0.7rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--vm-radius-md);
+  background: var(--vm-surface-soft);
+  border: 1px solid var(--vm-border);
+  /* Menyusut mengikuti isi, tidak melar selebar kartu: label di dalamnya
+     jauh lebih pendek daripada kartunya, sehingga tanpa ini lebih dari
+     separuh kotak jadi ruang kosong. */
+  width: fit-content;
+}
+
+.vm-bd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Satu baris: [ikon] [angka] [label]. Kolom fixed supaya label lurus. */
+.vm-bd-item {
+  display: grid;
+  grid-template-columns: 1.4rem 2.4rem 1fr;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.vm-bd-item > i {
+  font-size: 1.1rem;
+  color: var(--vm-text-muted);
+  justify-self: center;
+}
+
+.vm-bd-num {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--vm-text-primary);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "cnum";
+}
+
+.vm-bd-label {
+  font-size: 0.82rem;
+  color: var(--vm-text-muted);
+}
+
+/* Baris bahan bakar (kartu Total) — 3 sel dengan pembatas vertikal. */
+.vm-kpi-fuelrow {
+  display: flex;
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--vm-border);
+}
+
+.vm-fuel-cell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0 0.7rem;
+}
+
+.vm-fuel-cell + .vm-fuel-cell { border-left: 1px solid var(--vm-border); }
+.vm-fuel-cell:first-child { padding-left: 0; }
+
+.vm-fuel-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.vm-fuel-top i { font-size: 1rem; }
+
+.vm-fuel-num {
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "cnum";
+}
+
+.vm-fuel-label {
+  font-size: 0.72rem;
+  color: var(--vm-text-muted);
+  line-height: 1.1;
+}
+
+.vm-fuel-cell.is-ev  .vm-fuel-num, .vm-fuel-cell.is-ev  .vm-fuel-top i { color: var(--vm-ev); }
+.vm-fuel-cell.is-bbm .vm-fuel-num, .vm-fuel-cell.is-bbm .vm-fuel-top i { color: var(--vm-bbm); }
+.vm-fuel-cell.is-unknown .vm-fuel-num, .vm-fuel-cell.is-unknown .vm-fuel-top i { color: var(--vm-text-muted); }
+
+/* Penekanan angka persen di teks delta. */
+.vm-bd-strong { font-weight: 700; color: var(--vm-text-secondary); }
+
+/* Progress bar persentase (kartu EV & BBM). */
+.vm-kpi-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.45rem;
+}
+
+.vm-progress-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--vm-border);
+  overflow: hidden;
+}
+
+.vm-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width var(--vm-dur-base) var(--vm-ease);
+}
+
+.vm-progress-fill.is-ev  { background: var(--vm-ev); }
+.vm-progress-fill.is-bbm { background: var(--vm-bbm); }
+
+.vm-progress-pct {
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.vm-progress-pct.is-ev  { color: var(--vm-ev); }
+.vm-progress-pct.is-bbm { color: var(--vm-bbm); }
+
 /* =============================== Camera ================================= */
 
 .vm-camera {
@@ -785,6 +942,135 @@ html, body {
   border: 1px solid var(--vm-border);
 }
 
+/* Hanya thumbnail asli (img) yang bisa diklik untuk lightbox — placeholder
+   "tidak ada foto" memakai <span> dengan kelas yang sama, jadi tidak ikut. */
+img.vm-thumb-tiny {
+  cursor: pointer;
+  transition: opacity var(--vm-dur-fast) var(--vm-ease),
+              transform var(--vm-dur-fast) var(--vm-ease);
+}
+img.vm-thumb-tiny:hover { opacity: 0.85; transform: scale(1.08); }
+
+/* ============================================================
+   Baris riwayat yang bisa dibuka + panel "Riwayat Deteksi Kendaraan"
+   Accordion server-side (lihat _detection_rows_history.html). Sengaja TANPA
+   animasi masuk: panel dirender ulang tiap polling 10 detik, animasi bisa
+   ikut terputar berulang dan mengganggu.
+   ============================================================ */
+
+.vm-row-expandable { cursor: pointer; }
+
+.vm-row-expandable:focus-visible {
+  outline: 2px solid var(--vm-accent);
+  outline-offset: -2px;
+}
+
+/* Baris yang sedang terbuka: ditandai supaya jelas panel di bawah ini miliknya. */
+.vm-table tbody tr.vm-row-expandable.is-open,
+.vm-table tbody tr.vm-row-expandable.is-open:hover {
+  background: var(--vm-surface-soft);
+}
+.vm-row-expandable.is-open td:first-child {
+  box-shadow: inset 2px 0 0 var(--vm-accent);
+}
+
+/* Penanda buka/tutup di kolom Aksi. */
+.vm-expand-caret {
+  color: var(--vm-text-muted);
+  margin-right: 0.35rem;
+  vertical-align: middle;
+  transition: transform var(--vm-dur-fast) var(--vm-ease),
+              color var(--vm-dur-fast) var(--vm-ease);
+}
+.vm-row-expandable:hover .vm-expand-caret { color: var(--vm-text); }
+.vm-row-expandable.is-open .vm-expand-caret {
+  transform: rotate(180deg);
+  color: var(--vm-accent);
+}
+
+/* Sel pembungkus panel: tanpa padding supaya panel mengatur jaraknya sendiri. */
+.vm-table tbody tr.vm-expand-row:hover { background: transparent; }
+.vm-expand-row > td {
+  padding: 0 !important;
+  background: var(--vm-surface-soft);
+  border-bottom: 1px solid var(--vm-border);
+}
+
+/* Panel dibuat SOLID (bukan liquid glass) — backdrop-filter bersarang buram. */
+.vm-expand-panel {
+  margin: 0.75rem 1rem 1rem;
+  padding: 1rem;
+  background: var(--vm-surface);
+  border: 1px solid var(--vm-border);
+  border-radius: var(--vm-radius-md);
+}
+
+.vm-expand-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.vm-expand-note {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--vm-text-muted);
+  background: var(--vm-surface-soft);
+  border-radius: var(--vm-radius-sm);
+}
+
+/* Sub-tabel isi panel — lebih ringan dari tabel utama. */
+.vm-subtable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.vm-subtable thead th {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--vm-text-muted);
+  text-align: left;
+  border-bottom: 1px solid var(--vm-border);
+}
+.vm-subtable tbody td {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--vm-text-secondary);
+  border-bottom: 1px solid var(--vm-border-soft);
+  vertical-align: middle;
+}
+.vm-subtable tbody tr:last-child td { border-bottom: 0; }
+.vm-subtable tbody tr:hover { background: var(--vm-surface-soft); }
+
+/* Baris yang sama dengan baris induk yang diklik. */
+.vm-subtable tbody tr.is-current td {
+  color: var(--vm-text);
+  font-weight: 500;
+  background: var(--vm-surface-soft);
+}
+.vm-subtable tbody tr.is-current td:first-child {
+  box-shadow: inset 2px 0 0 var(--vm-accent);
+}
+
+.vm-expand-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--vm-border-soft);
+  font-size: 0.8125rem;
+}
+
+.vm-thumb--sm { width: 44px; height: 28px; }
+
 /* Input kecil (mis. field tanggal ketik-manual di grafik tren) */
 .vm-input--sm {
   padding: 0.3rem 0.5rem;
@@ -963,6 +1249,31 @@ html[data-bs-theme="dark"] { color-scheme: dark; }
 }
 
 .vm-field { margin-bottom: 1rem; }
+
+/* ===== Grup filter (sidebar /riwayat) =====
+   Tiap filter dibungkus panelnya sendiri supaya batas antar filter jelas:
+   tanggal, jam, plat, dan status plat tidak lagi menyatu jadi satu kolom
+   panjang. Dipasang berdampingan dengan .vm-field (margin bawahnya ikut
+   dari sana). Panelnya menyala saat filter itu sedang dipakai. */
+.vm-filter-group {
+  padding: 0.75rem;
+  border: 1px solid var(--vm-border);
+  border-radius: var(--vm-radius-sm);
+  background: var(--vm-surface-soft);
+  transition: border-color var(--vm-dur-fast) var(--vm-ease),
+              box-shadow var(--vm-dur-fast) var(--vm-ease);
+}
+
+.vm-filter-group:focus-within {
+  border-color: var(--vm-accent);
+  box-shadow: 0 0 0 3px var(--vm-accent-soft);
+}
+
+.vm-filter-group .vm-label { margin-bottom: 0.5rem; }
+
+/* Panel yang memuat lebih dari satu filter (Plat Nomor + Status Plat):
+   beri jarak sebelum label kedua supaya tidak menempel ke input di atasnya. */
+.vm-filter-group .vm-label:not(:first-child) { margin-top: 0.85rem; }
 
 .vm-input-group {
   display: flex;

@@ -1,49 +1,152 @@
-{# 3 KPI cards. Dipakai di dashboard.html via {% include %} initial render,
-   dan di-swap oleh HTMX saat ada deteksi baru. #}
+{# 4 KPI cards. Dipakai di dashboard.html via {% include %} initial render,
+   dan di-swap oleh HTMX saat ada deteksi baru.
+
+   Tiap kartu: angka besar + subjudul, lalu SATU kotak highlight berisi list
+   rincian tipe (mobil/motor/unknown). Kartu Total menambah baris bahan bakar
+   (EV/BBM/unknown) dengan pembatas; kartu EV & BBM menambah progress bar
+   persentase. Baris ❓ (belum teridentifikasi) hanya tampil kalau jumlahnya > 0. #}
+
+{% macro tipe_list(d) %}
+  <div class="vm-bd-list">
+    <div class="vm-bd-item">
+      <i class="ti ti-car"></i>
+      <span class="vm-bd-num">{{ d.mobil }}</span>
+      <span class="vm-bd-label">Mobil</span>
+    </div>
+    <div class="vm-bd-item">
+      <i class="ti ti-motorbike"></i>
+      <span class="vm-bd-num">{{ d.motor }}</span>
+      <span class="vm-bd-label">Motor</span>
+    </div>
+    {% if d.unknown > 0 %}
+    <div class="vm-bd-item is-unknown">
+      <i class="ti ti-help-circle"></i>
+      <span class="vm-bd-num">{{ d.unknown }}</span>
+      <span class="vm-bd-label">Unknown</span>
+    </div>
+    {% endif %}
+  </div>
+{% endmacro %}
+
 <div class="row g-3" id="vm-stats-grid">
-  <div class="col-md-4">
-    <div class="vm-kpi is-total">
+  {# Kartu KENDARAAN vs kartu DETEKSI sengaja dipisah: satu kendaraan yang
+     lewat berkali-kali dihitung SEKALI di kartu kendaraan, tapi sebanyak
+     lintasannya di kartu deteksi. Angka kendaraan diambil dari tabel master
+     (mobil/motor), angka deteksi dari tabel deteksi. #}
+  <div class="col-md-6">
+    <div class="vm-kpi is-total h-100 d-flex flex-column">
       <div class="vm-kpi-head">
         <span class="vm-card-label">Total Kendaraan</span>
         <i class="ti ti-car vm-muted"></i>
       </div>
-      <div class="vm-kpi-value">{{ "{:,}".format(total).replace(",", ".") }}</div>
-      <div class="vm-kpi-delta">
-        <i class="ti ti-minus"></i> Akumulasi seluruh deteksi
+      <div class="vm-kpi-body">
+        <div>
+          <div class="vm-kpi-value">{{ "{:,}".format(kendaraan.total).replace(",", ".") }}</div>
+          <div class="vm-kpi-sub">Kendaraan berbeda</div>
+        </div>
+
+        <div class="vm-kpi-breakdown">
+        <div class="vm-bd-list">
+          <div class="vm-bd-item">
+            <i class="ti ti-car"></i>
+            <span class="vm-bd-num">{{ kendaraan.mobil }}</span>
+            <span class="vm-bd-label">Mobil</span>
+          </div>
+          <div class="vm-bd-item">
+            <i class="ti ti-motorbike"></i>
+            <span class="vm-bd-num">{{ kendaraan.motor }}</span>
+            <span class="vm-bd-label">Motor</span>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      {# Rata-rata lintasan per kendaraan: menegaskan beda kartu ini dengan
+         kartu Total Deteksi di sebelahnya. #}
+      {% set per_kendaraan = "%.1f"|format((total / kendaraan.total) if kendaraan.total else 0) %}
+      <div class="vm-kpi-delta mt-auto">
+        <span class="vm-bd-strong">{{ per_kendaraan }}&times;</span> rata-rata terdeteksi per kendaraan
       </div>
     </div>
   </div>
 
-  <div class="col-md-4">
-    <div class="vm-kpi is-ev">
+  <div class="col-md-6">
+    <div class="vm-kpi is-total h-100 d-flex flex-column">
+      <div class="vm-kpi-head">
+        <span class="vm-card-label">Total Deteksi</span>
+        <i class="ti ti-history vm-muted"></i>
+      </div>
+      <div class="vm-kpi-body">
+        <div>
+          <div class="vm-kpi-value">{{ "{:,}".format(total).replace(",", ".") }}</div>
+          <div class="vm-kpi-sub">Peristiwa deteksi</div>
+        </div>
+        <div class="vm-kpi-breakdown">{{ tipe_list(rincian.total) }}</div>
+      </div>
+
+      {# Baris bahan bakar lengkap (termasuk unknown) supaya tidak ada angka yang
+         "hilang": EV + BBM + ❓ = Total. #}
+      <div class="vm-kpi-fuelrow mt-auto">
+        <div class="vm-fuel-cell is-ev">
+          <div class="vm-fuel-top"><i class="ti ti-bolt"></i><span class="vm-fuel-num">{{ total_ev }}</span></div>
+          <span class="vm-fuel-label">EV</span>
+        </div>
+        <div class="vm-fuel-cell is-bbm">
+          <div class="vm-fuel-top"><i class="ti ti-gas-station"></i><span class="vm-fuel-num">{{ total_gas }}</span></div>
+          <span class="vm-fuel-label">BBM</span>
+        </div>
+        {% if total_unknown > 0 %}
+        <div class="vm-fuel-cell is-unknown">
+          <div class="vm-fuel-top"><i class="ti ti-help-circle"></i><span class="vm-fuel-num">{{ total_unknown }}</span></div>
+          <span class="vm-fuel-label">Unknown</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="vm-kpi is-ev h-100 d-flex flex-column">
       <div class="vm-kpi-head">
         <span class="vm-card-label">Electric Vehicle</span>
         <i class="ti ti-bolt" style="color: var(--vm-ev);"></i>
       </div>
-      <div class="vm-kpi-value">{{ "{:,}".format(total_ev).replace(",", ".") }}</div>
-      <div class="vm-kpi-delta">
-        {% if total > 0 %}
-          {{ "%.1f"|format(total_ev * 100 / total) }}% dari total
-        {% else %}
-          Belum ada data
-        {% endif %}
+      <div class="vm-kpi-body">
+        <div>
+          <div class="vm-kpi-value">{{ "{:,}".format(total_ev).replace(",", ".") }}</div>
+          <div class="vm-kpi-sub">Deteksi listrik</div>
+        </div>
+        <div class="vm-kpi-breakdown">{{ tipe_list(rincian.ev) }}</div>
+      </div>
+
+      {% set ev_pct = "%.1f"|format((total_ev * 100 / total) if total else 0) %}
+      <div class="vm-kpi-delta mt-auto"><span class="vm-bd-strong">{{ ev_pct }}%</span> dari total</div>
+      <div class="vm-kpi-progress">
+        <div class="vm-progress-track"><div class="vm-progress-fill is-ev" style="width: {{ ev_pct }}%"></div></div>
+        <span class="vm-progress-pct is-ev">{{ ev_pct }}%</span>
       </div>
     </div>
   </div>
 
-  <div class="col-md-4">
-    <div class="vm-kpi is-bbm">
+  <div class="col-md-6">
+    <div class="vm-kpi is-bbm h-100 d-flex flex-column">
       <div class="vm-kpi-head">
         <span class="vm-card-label">Bahan Bakar (BBM)</span>
         <i class="ti ti-gas-station" style="color: var(--vm-bbm);"></i>
       </div>
-      <div class="vm-kpi-value">{{ "{:,}".format(total_gas).replace(",", ".") }}</div>
-      <div class="vm-kpi-delta">
-        {% if total > 0 %}
-          {{ "%.1f"|format(total_gas * 100 / total) }}% dari total
-        {% else %}
-          Belum ada data
-        {% endif %}
+      <div class="vm-kpi-body">
+        <div>
+          <div class="vm-kpi-value">{{ "{:,}".format(total_gas).replace(",", ".") }}</div>
+          <div class="vm-kpi-sub">Deteksi bensin</div>
+        </div>
+        <div class="vm-kpi-breakdown">{{ tipe_list(rincian.bbm) }}</div>
+      </div>
+
+      {% set bbm_pct = "%.1f"|format((total_gas * 100 / total) if total else 0) %}
+      <div class="vm-kpi-delta mt-auto"><span class="vm-bd-strong">{{ bbm_pct }}%</span> dari total</div>
+      <div class="vm-kpi-progress">
+        <div class="vm-progress-track"><div class="vm-progress-fill is-bbm" style="width: {{ bbm_pct }}%"></div></div>
+        <span class="vm-progress-pct is-bbm">{{ bbm_pct }}%</span>
       </div>
     </div>
   </div>

@@ -7,8 +7,11 @@
   <td class="vm-tnum vm-muted" style="width: 70px;">{{ display_ts.strftime('%H:%M') }}</td>
   <td>
     {% if item.file_foto %}
+      {# Klik -> lightbox global (handler ada di base.html, scope vmGlobal). #}
       <img src="{{ url_for('uploaded_file', filename=item.file_foto) }}"
-           class="vm-thumb-tiny" alt="thumb">
+           class="vm-thumb-tiny" alt="thumb"
+           title="Klik untuk perbesar"
+           @click='$dispatch("vm:lightbox", {{ url_for("uploaded_file", filename=item.file_foto)|tojson }})'>
     {% else %}
       <span class="vm-thumb-tiny d-inline-flex align-items-center justify-content-center vm-muted"
             style="background: var(--vm-surface-soft);">

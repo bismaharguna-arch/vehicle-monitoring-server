@@ -32,7 +32,6 @@ class Motor(db.Model):
     bahan_bakar = db.Column(db.String(16), nullable=False, default="unknown")
 
 
-# ===== Tabel TRANSAKSI deteksi (dulu Detection) =====
 # Nama tabel = "deteksi". Menyimpan event tiap kali kamera mendeteksi kendaraan.
 class Deteksi(db.Model):
     __tablename__ = 'deteksi'

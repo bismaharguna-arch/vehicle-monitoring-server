@@ -27,6 +27,10 @@ SORT_COLUMNS = {
 DEFAULT_SORT = "waktu"
 DEFAULT_DIR = "desc"
 
+# Batas baris yang ditampilkan di panel expand (riwayat 1 kendaraan). Totalnya
+# tetap dihitung penuh; kalau lebih dari ini panel memberi catatan terpotong.
+EXPAND_LIMIT = 5
+
 
 def _empty_page():
     """Context pagination kosong — dipakai saat DB tidak tersedia supaya tabel
@@ -42,6 +46,9 @@ def _empty_page():
         "sort_dir": DEFAULT_DIR,
         "f_type": "all",
         "f_fuel": "all",
+        "expanded_id": None,
+        "expanded_group": [],
+        "expanded_total": 0,
     }
 
 
@@ -94,13 +101,17 @@ def _get_sort(args):
 
 def _apply_sort(query, sort, sort_dir):
     col = SORT_COLUMNS.get(sort, Deteksi.timestamp)
-    return query.order_by(col.asc() if sort_dir == "asc" else col.desc())
+    # id sebagai pemecah seri WAJIB: tanpa ini baris dengan nilai kembar
+    # (mis. 193 baris ber-confidence 0.9) bisa berpindah urutan antar
+    # permintaan, sehingga saat dipaginasi ada baris tampil dua kali di
+    # halaman berbeda dan baris lain tidak pernah muncul sama sekali.
+    return query.order_by(col.asc() if sort_dir == "asc" else col.desc(),
+                          Deteksi.id.desc())
 
 
-def _query_from_args(args):
-    """Bangun query terfilter + terurut dari query string (dipakai bersama oleh
-    pagination, export CSV, dan cetak)."""
-    query = _filtered_query(
+def _filtered_from_args(args):
+    """Query terfilter (belum diurutkan) dari query string."""
+    return _filtered_query(
         p_date=args.get("date") or None,
         p_plate=args.get("plate") or None,
         p_type=args.get("type") or None,
@@ -111,8 +122,52 @@ def _query_from_args(args):
         p_date_to=args.get("date_to") or None,
         p_plat_status=args.get("plat_status") or None,
     )
+
+
+def _query_from_args(args):
+    """Bangun query terfilter + terurut dari query string (dipakai bersama oleh
+    pagination, export CSV, dan cetak)."""
+    query = _filtered_from_args(args)
     sort, sort_dir = _get_sort(args)
     return _apply_sort(query, sort, sort_dir), sort, sort_dir
+
+
+def _expanded_group(args, items):
+    """Isi panel expand: semua deteksi dari kendaraan yang sama.
+
+    `expanded` (query string) = id deteksi yang barisnya sedang dibuka. State-nya
+    ikut terkirim di tiap refresh/polling (hidden input #vm-expanded-input), jadi
+    panel dirender server dan selamat dari swap `morph` tiap 10 detik.
+
+    Kendaraan diidentifikasi lewat FK master (id_mobil / id_motor). Deteksi tanpa
+    plat (kedua FK NULL) tidak punya identitas untuk dikelompokkan -> grupnya
+    berisi baris itu sendiri saja. Isi panel menghormati filter yang aktif.
+
+    Returns (expanded_id, items_grup, total_grup).
+    """
+    expanded_id = args.get("expanded", type=int)
+    if not expanded_id:
+        return None, [], 0
+
+    # Barisnya harus ada di halaman ini; kalau tidak (pindah halaman / kena
+    # filter) panel tidak dirender dan query grup tidak perlu dijalankan.
+    row = next((i for i in items if i.id == expanded_id), None)
+    if row is None:
+        return None, [], 0
+
+    if not row.id_mobil and not row.id_motor:
+        return expanded_id, [row], 1
+
+    query = _filtered_from_args(args)
+    if row.id_mobil:
+        query = query.filter(Deteksi.id_mobil == row.id_mobil)
+    else:
+        query = query.filter(Deteksi.id_motor == row.id_motor)
+
+    total = query.count()
+    grup = (query.order_by(Deteksi.timestamp.desc(), Deteksi.id.desc())
+                 .limit(EXPAND_LIMIT).all())
+    return expanded_id, grup, total
 
 
 def _paginate(args):
@@ -125,6 +180,7 @@ def _paginate(args):
     items = (query.offset((page - 1) * PER_PAGE)
                   .limit(PER_PAGE)
                   .all())
+    expanded_id, expanded_group, expanded_total = _expanded_group(args, items)
     return {
         "latest": items,
         "page": page,
@@ -137,6 +193,10 @@ def _paginate(args):
         # Nilai filter aktif untuk dropdown di header kolom (Tipe & Jenis).
         "f_type": args.get("type") or "all",
         "f_fuel": args.get("fuel") or "all",
+        # Baris yang sedang dibuka + isi panelnya (lihat _expanded_group).
+        "expanded_id": expanded_id,
+        "expanded_group": expanded_group,
+        "expanded_total": expanded_total,
     }
 
 

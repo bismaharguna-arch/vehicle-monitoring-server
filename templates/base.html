@@ -27,7 +27,9 @@
    Yang benar-benar memakainya = elemen ber-hx-swap="morph:innerHTML". #}
 <body hx-ext="morph">
 
-  <div x-data="vmGlobal()" @vm:open-profile.window="openProfile()">
+  <div x-data="vmGlobal()"
+       @vm:open-profile.window="openProfile()"
+       @vm:lightbox.window="openLightbox($event.detail)">
     {% include 'partials/_navbar.html' %}
 
     <main class="container py-4">
@@ -50,6 +52,22 @@
     {% if current_user.is_authenticated %}
     {% include 'partials/_profile_modal.html' %}
     {% endif %}
+
+    {# ---------- Lightbox foto (global) ----------
+       Dipakai bersama oleh dashboard & riwayat. Cukup dispatch event dari mana
+       saja: $dispatch('vm:lightbox', '<url foto>'). Sengaja ditaruh di sini
+       (bukan per halaman) supaya implementasinya tunggal. #}
+    <template x-teleport="body">
+      <div x-show="lightboxSrc" x-cloak
+           x-transition.opacity
+           class="vm-modal-backdrop"
+           style="background: rgba(0,0,0,0.85);"
+           @keydown.escape.window="lightboxSrc = ''"
+           @click.self="lightboxSrc = ''">
+        <img :src="lightboxSrc" alt="preview"
+             style="max-width: 90vw; max-height: 90vh; border-radius: 8px;">
+      </div>
+    </template>
   </div>
 
   {# ---------- HTMX ---------- #}
@@ -120,6 +138,10 @@
   <script>
     function vmGlobal() {
       return {
+        // Lightbox foto (dipakai dashboard & riwayat lewat event 'vm:lightbox')
+        lightboxSrc: '',
+        openLightbox(src) { this.lightboxSrc = src; },
+
         // Profile modal
         profileOpen: false,
         profileSaving: false,

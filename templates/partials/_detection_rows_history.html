@@ -1,8 +1,19 @@
 {# Tabel rows untuk halaman riwayat. Di-swap penuh oleh HTMX dari
-   /partials/detections/list. Targeted oleh tbody#vm-history-body. #}
+   /partials/detections/list. Targeted oleh tbody#vm-history-body.
+
+   Baris bisa diklik untuk membuka panel "Riwayat Deteksi Kendaraan" (accordion,
+   satu baris terbuka dalam satu waktu). State-nya server-side: id baris terbuka
+   disimpan di hidden input #vm-expanded-input dan ikut terkirim tiap refresh,
+   jadi panelnya tidak hilang saat swap `morph` tiap 10 detik. #}
 {% for item in latest %}
 {% set display_ts = item.waktu_deteksi or item.timestamp %}
-<tr id="row-{{ item.id }}">
+{% set is_open = expanded_id is defined and expanded_id == item.id %}
+<tr id="row-{{ item.id }}"
+    class="vm-row-expandable{% if is_open %} is-open{% endif %}"
+    role="button" tabindex="0"
+    title="Klik untuk lihat riwayat deteksi kendaraan ini"
+    onclick="vmToggleExpand({{ item.id }})"
+    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();vmToggleExpand({{ item.id }})}">
   <td class="vm-tnum vm-muted" style="white-space: nowrap;"
       {% if item.waktu_deteksi %}title="Waktu deteksi (detector)"{% else %}title="Waktu masuk server"{% endif %}>
     {{ display_ts.strftime('%d/%m/%Y') }}<br>
@@ -13,7 +24,7 @@
       <img src="{{ url_for('uploaded_file', filename=item.file_foto) }}"
            class="vm-thumb"
            alt="thumb"
-           @click='$dispatch("vm:lightbox", {{ url_for("uploaded_file", filename=item.file_foto)|tojson }})'>
+           @click.stop='$dispatch("vm:lightbox", {{ url_for("uploaded_file", filename=item.file_foto)|tojson }})'>
     {% else %}
       <span class="vm-thumb d-inline-flex align-items-center justify-content-center vm-muted"
             style="background: var(--vm-surface-soft); cursor: default;">
@@ -57,9 +68,11 @@
     {% endif %}
   </td>
   <td class="text-end" style="white-space: nowrap;">
+    {# Penanda buka/tutup. Klik-nya ditangani oleh baris (tidak perlu .stop). #}
+    <i class="ti ti-chevron-down vm-expand-caret"></i>
     {% if current_user.role != 'guest' %}
       <button class="vm-btn vm-btn--icon" title="Koreksi data"
-              @click='openEdit({
+              @click.stop='openEdit({
                 id: {{ item.id }},
                 plate: {{ (item.plat_nomor or "")|tojson }},
                 type: {{ (item.tipe_kendaraan or "unknown")|tojson }},
@@ -70,7 +83,7 @@
     {% endif %}
     {% if current_user.role == 'admin' %}
       <button class="vm-btn vm-btn--icon is-danger" title="Hapus data"
-              @click='openDelete({
+              @click.stop='openDelete({
                 id: {{ item.id }},
                 timestamp: {{ display_ts.strftime("%d/%m/%Y %H:%M:%S")|tojson }},
                 plate: {{ (item.plat_nomor or "")|tojson }},
@@ -82,6 +95,83 @@
     {% endif %}
   </td>
 </tr>
+{% if is_open %}
+{# Panel expand. <div> dibungkus <td> (bukan sibling <tr>) supaya parser HTML
+   tidak melempar keluar tabel — lihat catatan foster-parenting di CLAUDE.md. #}
+<tr class="vm-expand-row">
+  <td colspan="7">
+    <div class="vm-expand-panel">
+      <div class="vm-expand-head">
+        <i class="ti ti-history vm-muted"></i>
+        <span class="vm-section-title">Riwayat Deteksi Kendaraan</span>
+        <span class="vm-plate">{{ item.plat_nomor or "Tanpa plat" }}</span>
+      </div>
+
+      {% if not item.id_mobil and not item.id_motor %}
+        <div class="vm-expand-note">
+          Deteksi ini tidak punya plat nomor, jadi tidak bisa dikelompokkan
+          dengan deteksi lain. Yang tampil hanya event ini sendiri.
+        </div>
+      {% endif %}
+
+      <table class="vm-subtable">
+        <thead>
+          <tr>
+            <th style="width: 3rem;">No.</th>
+            <th>Waktu Deteksi</th>
+            <th style="width: 6rem;">Foto</th>
+            <th style="width: 8rem;">Confidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in expanded_group %}
+          {% set d_ts = d.waktu_deteksi or d.timestamp %}
+          <tr {% if d.id == item.id %}class="is-current" title="Baris yang sedang dibuka"{% endif %}>
+            <td class="vm-tnum vm-muted">{{ loop.index }}</td>
+            <td class="vm-tnum" style="white-space: nowrap;">
+              {{ d_ts.strftime('%d/%m/%Y %H:%M:%S') }}
+            </td>
+            <td>
+              {% if d.file_foto %}
+                <img src="{{ url_for('uploaded_file', filename=d.file_foto) }}"
+                     class="vm-thumb vm-thumb--sm" alt="thumb"
+                     @click.stop='$dispatch("vm:lightbox", {{ url_for("uploaded_file", filename=d.file_foto)|tojson }})'>
+              {% else %}
+                <span class="vm-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="vm-tnum">
+              {% if d.confidence_score is not none and d.confidence_score > 0 %}
+                <span style="font-size: 0.85rem;">{{ "%.2f"|format(d.confidence_score) }}</span>
+                {% if d.confidence_score < 0.65 %}
+                  <span class="vm-badge vm-badge--unknown ms-1"
+                        style="font-size: 0.65rem; padding: 0.1rem 0.35rem;"
+                        title="Confidence rendah — disarankan review manual">
+                    Low
+                  </span>
+                {% endif %}
+              {% else %}
+                <span class="vm-muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="vm-expand-foot">
+        <span class="vm-muted">
+          <i class="ti ti-calendar-stats"></i>
+          Total {{ expanded_total }} deteksi
+          {% if expanded_total > expanded_group|length %}
+            — menampilkan {{ expanded_group|length }} terbaru
+          {% endif %}
+        </span>
+      </div>
+    </div>
+  </td>
+</tr>
+{% endif %}
 {% else %}
 <tr>
   <td colspan="7">

@@ -2,9 +2,10 @@ import os
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, jsonify, make_response, request
 from flask_login import login_required
+from sqlalchemy import func
 from sqlalchemy.exc import OperationalError, InterfaceError, DBAPIError
 from extensions import db
-from models import Deteksi
+from models import Deteksi, Mobil, Motor
 
 # Membuat Blueprint dengan nama 'dashboard'
 bp = Blueprint('dashboard', __name__)
@@ -28,12 +29,62 @@ def _offline_partial(template, **ctx):
     return resp
 
 
+def _empty_tipe():
+    """Rincian tipe kosong (dipakai saat DB offline)."""
+    return {"mobil": 0, "motor": 0, "unknown": 0}
+
+
+def _empty_rincian():
+    return {"total": _empty_tipe(), "ev": _empty_tipe(), "bbm": _empty_tipe()}
+
+
+def _empty_kendaraan():
+    return {"total": 0, "mobil": 0, "motor": 0}
+
+
 def _compute_stats():
-    total = db.session.query(Deteksi).count()
-    total_ev = db.session.query(Deteksi).filter_by(bahan_bakar="listrik").count()
-    total_gas = db.session.query(Deteksi).filter_by(bahan_bakar="bensin").count()
-    total_unknown = db.session.query(Deteksi).filter_by(bahan_bakar="unknown").count()
-    return total, total_ev, total_gas, total_unknown
+    """Hitung total + rincian tipe (mobil/motor/unknown) per bahan bakar.
+
+    Semua angka diturunkan dari SATU query silang tipe_kendaraan x bahan_bakar,
+    jadi kartu KPI bisa menampilkan rincian tipe di bawahnya tanpa query tambahan.
+    `rincian` = rincian tipe untuk: keseluruhan (`total`), khusus listrik (`ev`),
+    khusus bensin (`bbm`). Kartu EV/BBM cuma pakai bagiannya masing-masing.
+    """
+    xt = {}
+    for tipe, fuel, n in (
+        db.session.query(Deteksi.tipe_kendaraan, Deteksi.bahan_bakar, func.count())
+        .group_by(Deteksi.tipe_kendaraan, Deteksi.bahan_bakar)
+        .all()
+    ):
+        xt[(tipe, fuel)] = n
+
+    def tipe_breakdown(fuel=None):
+        # fuel=None -> semua bahan bakar; else difilter satu kategori.
+        d = _empty_tipe()
+        for (tipe, f), n in xt.items():
+            if fuel is not None and f != fuel:
+                continue
+            # tipe non-kanonik (harusnya tak ada) dihitung sebagai unknown.
+            d[tipe if tipe in d else "unknown"] += n
+        return d
+
+    total = sum(xt.values())
+    total_ev = sum(n for (t, f), n in xt.items() if f == "listrik")
+    total_gas = sum(n for (t, f), n in xt.items() if f == "bensin")
+    total_unknown = sum(n for (t, f), n in xt.items() if f == "unknown")
+
+    rincian = {
+        "total": tipe_breakdown(),          # semua deteksi, dipecah per tipe
+        "ev": tipe_breakdown("listrik"),    # tipe di dalam kelompok listrik
+        "bbm": tipe_breakdown("bensin"),    # tipe di dalam kelompok bensin
+    }
+    # Kendaraan BERBEDA (bukan peristiwa deteksi) diambil dari tabel master.
+    # Satu kendaraan yang lewat 15 kali tetap dihitung satu di sini.
+    kendaraan = {"mobil": db.session.query(Mobil).count(),
+                 "motor": db.session.query(Motor).count()}
+    kendaraan["total"] = kendaraan["mobil"] + kendaraan["motor"]
+
+    return total, total_ev, total_gas, total_unknown, rincian, kendaraan
 
 
 @bp.route("/")
@@ -44,12 +95,16 @@ def index():
     # adanya (angka 0, tabel kosong) + flag db_offline untuk tampilkan banner.
     db_offline = False
     try:
-        total, total_ev, total_gas, total_unknown = _compute_stats()
-        latest_log = db.session.query(Deteksi).order_by(Deteksi.timestamp.desc()).limit(RECENT_LIMIT).all()
+        total, total_ev, total_gas, total_unknown, rincian, kendaraan = _compute_stats()
+        latest_log = (db.session.query(Deteksi)
+                      .order_by(Deteksi.timestamp.desc(), Deteksi.id.desc())
+                      .limit(RECENT_LIMIT).all())
     except DB_ERRORS:
         db.session.rollback()
         db_offline = True
         total = total_ev = total_gas = total_unknown = 0
+        rincian = _empty_rincian()
+        kendaraan = _empty_kendaraan()
         latest_log = []
 
     # URL MJPEG stream dari detector. Detector serve endpoint /preview pada port
@@ -70,6 +125,8 @@ def index():
         total_ev=total_ev,
         total_gas=total_gas,
         total_unknown=total_unknown,
+        rincian=rincian,
+        kendaraan=kendaraan,
         latest=latest_log,
         detector_preview_url=detector_preview_url,
         db_offline=db_offline,
@@ -85,12 +142,13 @@ def index():
 @login_required
 def partial_stats():
     try:
-        total, total_ev, total_gas, total_unknown = _compute_stats()
+        total, total_ev, total_gas, total_unknown, rincian, kendaraan = _compute_stats()
     except DB_ERRORS:
         db.session.rollback()
         return _offline_partial(
             "partials/_stats_cards.html",
             total=0, total_ev=0, total_gas=0, total_unknown=0,
+            rincian=_empty_rincian(), kendaraan=_empty_kendaraan(),
         )
     return render_template(
         "partials/_stats_cards.html",
@@ -98,6 +156,8 @@ def partial_stats():
         total_ev=total_ev,
         total_gas=total_gas,
         total_unknown=total_unknown,
+        rincian=rincian,
+        kendaraan=kendaraan,
     )
 
 

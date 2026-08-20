@@ -71,3 +71,15 @@ logs/
 # Fixture uji upload manual (ada file 20 MB) + dokumen laporan pribadi
 test_files/
 *.docx
+
+# --- Berkas TA & aset laporan (bukan bagian program) ---
+*.pdf
+foto mockup/
+alat pengujian/
+docs/USULAN_*.md
+
+# --- Keluaran graphify (dibangkitkan ulang: `graphify update .`) ---
+graphify-out/
+
+# --- Sampah sementara MS Word ---
+~WRL*.tmp

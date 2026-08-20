@@ -70,35 +70,6 @@
       {% include 'partials/_stats_cards.html' %}
     </div>
 
-    {# ----- Time-series chart ----- #}
-    <div class="vm-card">
-      <div class="vm-card-header">
-        <div>
-          <span class="vm-section-title">Tren Deteksi</span>
-          {# Label = dua tanggal yang bisa diklik & diedit langsung #}
-          <span class="vm-card-label d-block" style="margin-top: 3px;">
-            <input type="text" id="vm-trend-from" class="vm-date-inline" placeholder="dd/mm/yyyy"
-                   inputmode="numeric" title="Klik untuk ganti tanggal" aria-label="Dari tanggal">
-            <span class="vm-date-dash">–</span>
-            <input type="text" id="vm-trend-to" class="vm-date-inline" placeholder="dd/mm/yyyy"
-                   inputmode="numeric" title="Klik untuk ganti tanggal" aria-label="Sampai tanggal">
-            <span id="vm-trend-gran"> · per jam</span>
-          </span>
-        </div>
-
-        <div class="vm-seg" role="group" aria-label="Rentang waktu">
-          <button type="button" class="vm-seg-btn is-active" data-range="1">1 Hari</button>
-          <button type="button" class="vm-seg-btn" data-range="7">7 Hari</button>
-          <button type="button" class="vm-seg-btn" data-range="30">30 Hari</button>
-        </div>
-      </div>
-      <div class="vm-card-body">
-        <div style="height: 220px;">
-          <canvas id="trendChart"></canvas>
-        </div>
-      </div>
-    </div>
-
   </div>
 
   {# ============================== KANAN (4/12) ============================ #}
@@ -184,6 +155,35 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+{# ----- Time-series chart (full-width, sejajar tepi grid di atasnya) ----- #}
+<div class="vm-card mt-4">
+  <div class="vm-card-header">
+    <div>
+      <span class="vm-section-title">Tren Deteksi</span>
+      {# Label = dua tanggal yang bisa diklik & diedit langsung #}
+      <span class="vm-card-label d-block" style="margin-top: 3px;">
+        <input type="text" id="vm-trend-from" class="vm-date-inline" placeholder="dd/mm/yyyy"
+               inputmode="numeric" title="Klik untuk ganti tanggal" aria-label="Dari tanggal">
+        <span class="vm-date-dash">–</span>
+        <input type="text" id="vm-trend-to" class="vm-date-inline" placeholder="dd/mm/yyyy"
+               inputmode="numeric" title="Klik untuk ganti tanggal" aria-label="Sampai tanggal">
+        <span id="vm-trend-gran"> · per jam</span>
+      </span>
+    </div>
+
+    <div class="vm-seg" role="group" aria-label="Rentang waktu">
+      <button type="button" class="vm-seg-btn is-active" data-range="1">1 Hari</button>
+      <button type="button" class="vm-seg-btn" data-range="7">7 Hari</button>
+      <button type="button" class="vm-seg-btn" data-range="30">30 Hari</button>
+    </div>
+  </div>
+  <div class="vm-card-body">
+    <div style="height: 220px;">
+      <canvas id="trendChart"></canvas>
+    </div>
   </div>
 </div>
 
@@ -291,6 +291,8 @@
         },
         scales: {
           x: {
+            offset: false,          // titik awal/akhir nempel tepi (mentok kiri-kanan)
+            bounds: 'data',
             grid: { display: false },
             ticks: { color: '#a8a29e', font: { size: 10 }, maxTicksLimit: 12, autoSkip: true },
             border: { color: 'rgba(255,255,255,0.12)' },

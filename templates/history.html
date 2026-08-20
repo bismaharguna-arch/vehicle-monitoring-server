@@ -17,7 +17,9 @@
 </div>
 
 {# Wrapper Alpine untuk modal state. Form filter di-include otomatis via hx-include. #}
-<div x-data="historyPage()" @vm:lightbox.window="openLightbox($event.detail)">
+{# Lightbox foto TIDAK didefinisikan di sini — sudah global di base.html
+   (scope vmGlobal). Thumbnail cukup $dispatch('vm:lightbox', url). #}
+<div x-data="historyPage()">
 
   <div class="row g-4">
 
@@ -44,6 +46,10 @@
            nilainya disimpan di hidden input ini (sumber kebenaran tunggal). #}
         <input type="hidden" name="type" id="vm-type-input" value="{{ f_type }}">
         <input type="hidden" name="fuel" id="vm-fuel-input" value="{{ f_fuel }}">
+        {# Baris riwayat yang sedang dibuka (panel "Riwayat Deteksi Kendaraan").
+           Disimpan di sini supaya ikut terkirim tiap refresh & polling — panelnya
+           dirender server, jadi tidak hilang saat swap morph tiap 10 detik. #}
+        <input type="hidden" name="expanded" id="vm-expanded-input" value="{{ expanded_id or '' }}">
 
         <div class="d-flex align-items-center justify-content-between mb-3">
           <span class="vm-section-title d-inline-flex align-items-center gap-2">
@@ -54,12 +60,18 @@
           </span>
         </div>
 
-        <div class="vm-field">
-          <label class="vm-label">Tanggal</label>
-          <input type="date" name="date" class="vm-input" onchange="vmResetPage()">
+        <div class="vm-field vm-filter-group">
+          <label class="vm-label">Rentang Tanggal</label>
+          {# Bertumpuk, bukan sejajar: input type="date" lebih lebar dari
+             type="time" sehingga dua-duanya tidak muat di lebar sidebar. #}
+          <div class="d-flex flex-column gap-1">
+            <input type="date" name="date_from" class="vm-input" onchange="vmResetPage()" title="Dari tanggal" aria-label="Dari tanggal">
+            <span class="vm-muted" style="font-size: 0.8125rem;">s/d</span>
+            <input type="date" name="date_to" class="vm-input" onchange="vmResetPage()" title="Sampai tanggal" aria-label="Sampai tanggal">
+          </div>
         </div>
 
-        <div class="vm-field">
+        <div class="vm-field vm-filter-group">
           <label class="vm-label">Rentang Jam</label>
           <div class="d-flex align-items-center gap-2">
             <input type="time" name="jam_start" class="vm-input" onchange="vmResetPage()" title="Jam mulai" aria-label="Jam mulai">
@@ -68,12 +80,12 @@
           </div>
         </div>
 
-        <div class="vm-field">
+        {# Plat nomor & status plat satu panel: dua-duanya menyaring hal yang
+           sama (plat), jadi lebih masuk akal dibaca sebagai satu kelompok. #}
+        <div class="vm-field vm-filter-group">
           <label class="vm-label">Plat Nomor</label>
           <input type="text" name="plate" class="vm-input" placeholder="Cari plat..." oninput="vmResetPage()">
-        </div>
 
-        <div class="vm-field">
           <label class="vm-label">Status Plat</label>
           <select name="plat_status" class="vm-input" onchange="vmResetPage()">
             <option value="all">Semua</option>
@@ -222,19 +234,6 @@
     </div>
   </template>
 
-  {# =================== Lightbox foto (Alpine) =================== #}
-  <template x-teleport="body">
-    <div x-show="lightboxSrc" x-cloak
-         x-transition.opacity
-         class="vm-modal-backdrop"
-         style="background: rgba(0,0,0,0.85);"
-         @keydown.escape.window="lightboxSrc = ''"
-         @click.self="lightboxSrc = ''">
-      <img :src="lightboxSrc" alt="preview"
-           style="max-width: 90vw; max-height: 90vh; border-radius: 8px;">
-    </div>
-  </template>
-
   {# =================== Dialog Cetak Laporan (Alpine) =================== #}
   <template x-teleport="body">
     <div x-show="printOpen" x-cloak
@@ -321,6 +320,19 @@
   function vmResetPage() {
     var el = document.getElementById('vm-page-input');
     if (el) el.value = 1;
+    // Filter berubah → baris yang tadi dibuka belum tentu ada lagi. Tutup panel.
+    var ex = document.getElementById('vm-expanded-input');
+    if (ex) ex.value = '';
+  }
+
+  // Buka/tutup panel "Riwayat Deteksi Kendaraan" pada satu baris (accordion:
+  // klik baris lain memindahkan panel, klik baris yang sama menutupnya).
+  // Sengaja TIDAK reset page — membuka panel tidak boleh melempar ke halaman 1.
+  function vmToggleExpand(id) {
+    var el = document.getElementById('vm-expanded-input');
+    if (!el) return;
+    el.value = (String(el.value) === String(id)) ? '' : String(id);
+    htmx.trigger('#vm-filter-form', 'vm:refresh');
   }
 
   // Sorting ala Task Manager Windows: klik kolom yang sama → toggle naik/turun;
@@ -354,7 +366,6 @@
     return {
       editOpen: false,
       saving: false,
-      lightboxSrc: '',
       form: { id: null, plate: '', type: 'unknown', fuel: 'unknown' },
 
       deleteOpen: false,
@@ -393,7 +404,12 @@
             // Trigger HTMX refresh tabel sambil mempertahankan filter aktif
             htmx.trigger('#vm-filter-form', 'vm:refresh');
           } else {
-            Swal.fire({ icon: 'error', title: 'Gagal', text: 'Anda mungkin tidak memiliki akses.' });
+            // Tampilkan pesan dari server (mis. format plat salah). Fallback ke
+            // pesan hak akses hanya kalau server tidak mengirim pesan apa pun —
+            // sebelumnya semua kegagalan disebut masalah akses, menyesatkan.
+            const j = await res.json().catch(() => ({}));
+            Swal.fire({ icon: 'error', title: 'Gagal',
+                        text: j.message || 'Anda mungkin tidak memiliki akses.' });
           }
         } catch (e) {
           Swal.fire({ icon: 'error', title: 'Error', text: 'Permintaan gagal.' });
@@ -401,8 +417,6 @@
           this.saving = false;
         }
       },
-
-      openLightbox(src) { this.lightboxSrc = src; },
 
       openDelete(item) {
         this.deleteTarget = {
